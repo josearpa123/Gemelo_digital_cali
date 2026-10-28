@@ -1,0 +1,8 @@
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.9.0+cpu
+stable-baselines3==2.7.0
+sumo-rl==1.4.5
+pettingzoo==1.25.0
+supersuit==3.10.0
+gymnasium==1.2.1
+tensorboard==2.20.0
