@@ -1,5 +1,7 @@
 name: gemelo-cali
 
+x-user: &user "${UID:-1000}:${GID:-1000}"
+
 x-volumes: &volumes
   - ./scenarios:/app/scenarios
   - ./models:/app/models
@@ -12,6 +14,7 @@ x-volumes: &volumes
 
 services:
   sim-api:
+    user: *user
     build: { context: ., dockerfile: docker/Dockerfile, target: sim }
     image: gemelo-cali/sim:dev
     ports: ["8000:8000"]
@@ -36,12 +39,14 @@ services:
     restart: unless-stopped
 
   trainer:
+    user: *user
     build: { context: ., dockerfile: docker/Dockerfile, target: trainer }
     image: gemelo-cali/trainer:dev
     profiles: ["train"]
     volumes: *volumes
 
   tensorboard:
+    user: *user
     image: gemelo-cali/trainer:dev
     profiles: ["train"]
     command: ["tensorboard", "--logdir", "/app/outputs/tb", "--host", "0.0.0.0", "--port", "6006"]

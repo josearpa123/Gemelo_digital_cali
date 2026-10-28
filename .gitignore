@@ -16,3 +16,4 @@ __pycache__/
 *:Zone.Identifier
 .claude/settings.local.json
 .claude/hooks/.selftest/
+.preview/
