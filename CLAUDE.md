@@ -60,7 +60,11 @@ Un hito está terminado cuando (a) todos sus criterios de `PLAN.md` tienen un te
 - PreToolUse Bash: bloquea `rm -rf /` o `~`, `docker system prune -a`, `git push --force` a main y acceso a `.env`.
 - PreToolUse Read/Edit/Write: bloquea `.env` y la edición manual de `models/` y `outputs/`.
 - PostToolUse Edit/Write: `ruff format` + `ruff check --fix` en `.py` (ruff del host o imagen `ghcr.io/astral-sh/ruff`); XML bien formado en archivos SUMO.
-- Stop: `pytest -m "not slow" -q` en sim-api; avisa sin bloquear.
-- SessionStart: hito actual + `docker compose ps`.
+- Stop: `pytest -m "not slow" -q` en sim-api; avisa sin bloquear. `stop-logbook.sh`: si hubo commits en la sesión y `BITACORA.md` no cambió, pide (una vez) registrar la entrada.
+- SessionStart: hito actual, últimas entradas de `BITACORA.md`, commits posteriores a la última entrada, cambios sin commit, issues abiertos (`gh`) y `docker compose ps`.
+- SessionEnd: si nadie escribió la entrada, agrega una automática con los commits de la sesión.
+
+## Bitácora (`BITACORA.md`, versionada)
+Al terminar trabajo con commits, agregar arriba una entrada `## <fecha> · <autor> · <rama>` con `HEAD`, **Hecho** (resultados reales), **Siguiente** (con responsable) y **Bloqueos**, y hacer commit. Es la memoria compartida entre Jose, Milton y las sesiones de Claude Code.
 - Autoprueba: `.claude/hooks/test-hooks.sh`.
 - Requisito del host: `jq` (los hooks usan `python3` como respaldo si falta).

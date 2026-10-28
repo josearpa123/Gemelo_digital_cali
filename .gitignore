@@ -17,3 +17,6 @@ __pycache__/
 .claude/settings.local.json
 .claude/hooks/.selftest/
 .preview/
+# demand route files are regenerated with: python -m sim.demand --dataset
+scenarios/*/demand/*.rou.xml
+.claude/state/
