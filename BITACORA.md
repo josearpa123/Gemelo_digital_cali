@@ -4,6 +4,24 @@ Registro de qué se hizo y qué sigue. La entrada más reciente va primero. El h
 
 Formato: `## <fecha> · <autor> · <rama>`, luego `HEAD`, **Hecho**, **Siguiente** y **Bloqueos**.
 
+## 2026-10-28 · Jose (con Claude Code) · feat/h1-demo
+
+HEAD `ver git log`
+
+**Hecho**
+- Panel web de la demo: `sim/runner.py` (libsumo en un hilo dedicado, estrategias intercambiables, accidente, demanda pico/valle, métricas), `api/main.py` (`/api/network` GeoJSON, `/api/control`, `/ws/state`) y `web/` (Leaflet + Chart.js, semáforo por carril, ⚠️ del accidente, KPIs, 2 gráficas con una serie por corrida).
+- Estrategia RL en vivo (`sim/controllers/rl_policy.py`) con la misma lógica de fases de sumo-rl; carga `models/current` o el modelo más reciente. `sim-api` usa ahora la imagen del trainer (torch + SB3).
+- Tests: `make test` 11 passed (incluye WebSocket con 4 tls y vehículos, accidente cambia `allowed` del carril, selector). `make e2e` (Playwright en Docker): 7/7 OK (simulación avanza, vehículos se mueven, gráficas, accidente, RL activa, pausa, sin errores JS).
+- Entrenamientos en curso: α = 0 en ~606k/3M timesteps, α = 0,3 en ~455k/3M (ep_rew_mean de −542 a −427 en α = 0; aún no es una métrica de evaluación).
+
+**Siguiente**
+- Claude/Jose: cuando terminen los entrenamientos, `make promote`/`models/current` y comparar RL vs tiempo fijo en las semillas de evaluación 0–4 (pico) con números reales.
+- Milton: #2 max-pressure (el panel ya tiene el botón, deshabilitado hasta que exista `sim/controllers/maxpressure.py` registrado en `SimRunner._available_strategies`), #4 netedit, tests de #1 y #3.
+- Ensayo de la demo y video de respaldo (jueves).
+
+**Bloqueos**
+- Milton aún no es colaborador del repo.
+
 ## 2026-10-27 · Jose (con Claude Code) · feat/h1-demo
 
 HEAD `2aafe37` (antes de este commit de docs)

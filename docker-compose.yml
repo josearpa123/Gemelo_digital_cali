@@ -16,8 +16,16 @@ x-volumes: &volumes
 services:
   sim-api:
     user: *user
-    build: { context: ., dockerfile: docker/Dockerfile, target: sim }
-    image: gemelo-cali/sim:dev
+    # trainer image: the live panel also runs the trained PPO policy (torch + SB3)
+    build: { context: ., dockerfile: docker/Dockerfile, target: trainer }
+    image: gemelo-cali/trainer:dev
+    command: ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 3s
+      start_period: 30s
+      retries: 5
     ports: ["8000:8000"]
     volumes: *volumes
     environment:
@@ -41,7 +49,6 @@ services:
 
   trainer:
     user: *user
-    build: { context: ., dockerfile: docker/Dockerfile, target: trainer }
     image: gemelo-cali/trainer:dev
     profiles: ["train"]
     volumes: *volumes
