@@ -109,6 +109,15 @@ PPO α=0 y α=0,3 (≥2 semillas de entrenamiento cada uno), curvas en TensorBoa
 ### H4 · Evaluación y cierre (16 nov)
 3 estrategias × 3 escenarios × 5 semillas; tablas y figuras; `goal_check.md` con la reducción real de espera en pico (con IC 95 %) frente al objetivo de 15 %; panel final; README con instrucciones y resultados citando archivos. `test-reviewer` revisa todo el repo.
 
+### Dataset de escenarios para entrenar y evaluar (transversal, H1–H4)
+En RL el agente aprende de la experiencia que genera en SUMO, pero **el entrenamiento sí requiere un dataset de escenarios de demanda generado por nosotros**:
+- `sim/demand.py` genera archivos `.rou.xml` reproducibles por `(escenario, semilla)`, con 35 % de motos en pico y peatones.
+- **Split de entrenamiento:** semillas 100–119 (pico en H1; valle, pico y evento desde H2). Cada episodio toma un archivo al azar de este split.
+- **Split de evaluación:** semillas 0–4 por escenario, nunca vistas en el entrenamiento (objetivo del 15 % medido aquí).
+- `scenarios/<zona>/demand/manifest.csv` registra split, escenario, semilla, archivo y conteos; un test verifica que los splits son disjuntos.
+- Opcional: calibrar volúmenes con aforos reales de Cali (Secretaría de Movilidad o datos abiertos) y citar la fuente.
+- Issues en GitHub: #1 (dataset), #2 (controladores), #3 (PPO), #4 (netedit), milestone «H1 · Demo (29 oct)».
+
 ## 4. Pruebas (FASE 3, transversal)
 - **Unitarias:** red y rutas, fixed y max-pressure, métricas (Jain con casos conocidos: iguales → 1, uno solo → 1/n), observación y recompensa.
 - **Integración:** healthchecks de compose, `/health`, WebSocket con vehículos y tls, accidente cambia el carril.
