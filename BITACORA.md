@@ -15,7 +15,7 @@ HEAD `ver git log`
 - Entrenamientos en curso: α = 0 en ~606k/3M timesteps, α = 0,3 en ~455k/3M (ep_rew_mean de −542 a −427 en α = 0; aún no es una métrica de evaluación).
 
 **Siguiente**
-- Claude/Jose: cuando terminen los entrenamientos, `make promote`/`models/current` y comparar RL vs tiempo fijo en las semillas de evaluación 0–4 (pico) con números reales.
+- Claude/Jose: cuando terminen los entrenamientos, apuntar `models/current` al mejor modelo y comparar RL vs tiempo fijo en las semillas de evaluación 0–4 (pico) con números reales.
 - Milton: #2 max-pressure (el panel ya tiene el botón, deshabilitado hasta que exista `sim/controllers/maxpressure.py` registrado en `SimRunner._available_strategies`), #4 netedit, tests de #1 y #3.
 - Ensayo de la demo y video de respaldo (jueves).
 
