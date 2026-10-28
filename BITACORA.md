@@ -16,7 +16,7 @@ HEAD `ver git log`
 
 **Siguiente**
 - Claude/Jose: cuando terminen los entrenamientos, apuntar `models/current` al mejor modelo y comparar RL vs tiempo fijo en las semillas de evaluación 0–4 (pico) con números reales.
-- Milton: #2 max-pressure (el panel ya tiene el botón, deshabilitado hasta que exista `sim/controllers/maxpressure.py` registrado en `SimRunner._available_strategies`), #4 netedit, tests de #1 y #3.
+- Milton (issues actualizados el 28 oct): #2 max-pressure (**prioridad demo**), #8 evaluación preliminar RL vs fijo y elegir `models/current`, #3 tests de RL y revisión de curvas, #1 tests de demanda y escenario evento, #4 netedit, #9 ensayo de la demo (con Jose), #10 corredor completo (H2).
 - Ensayo de la demo y video de respaldo (jueves).
 
 **Bloqueos**
