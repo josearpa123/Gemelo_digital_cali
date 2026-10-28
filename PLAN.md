@@ -1,11 +1,11 @@
 # PLAN · Gemelo digital de movilidad urbana · Cali
 
-**Hito actual:** H0 · workspace, Docker y hooks (27 oct): workspace y hooks listos; Docker pendiente de aprobación del plan
+**Hito actual:** H1 · demo (29 oct): red real lista (Av. Roosevelt, 4 tls); falta demanda, controladores, PPO, API y mapa
 
 | Hito | Fecha | Estado |
 |---|---|---|
-| H0 Workspace + Docker + hooks | 27 oct | workspace ✅ · hooks ✅ (29/29 casos + SessionStart/Stop) · Docker ⏳ |
-| H1 Demo | **29 oct** | pendiente |
+| H0 Workspace + Docker + hooks | 27 oct | ✅ terminado (hooks 29/29, compose healthy, `make test` OK) |
+| H1 Demo | **29 oct** | en curso: red `roosevelt4` ✅ |
 | H2 Corredor completo | 2 nov | pendiente |
 | H3 MARL coordinado | 9 nov | pendiente |
 | H4 Evaluación y cierre | 16 nov (entrega 17 nov) | pendiente |
@@ -109,6 +109,15 @@ PPO α=0 y α=0,3 (≥2 semillas de entrenamiento cada uno), curvas en TensorBoa
 ### H4 · Evaluación y cierre (16 nov)
 3 estrategias × 3 escenarios × 5 semillas; tablas y figuras; `goal_check.md` con la reducción real de espera en pico (con IC 95 %) frente al objetivo de 15 %; panel final; README con instrucciones y resultados citando archivos. `test-reviewer` revisa todo el repo.
 
+### Dataset de escenarios para entrenar y evaluar (transversal, H1–H4)
+En RL el agente aprende de la experiencia que genera en SUMO, pero **el entrenamiento sí requiere un dataset de escenarios de demanda generado por nosotros**:
+- `sim/demand.py` genera archivos `.rou.xml` reproducibles por `(escenario, semilla)`, con 35 % de motos en pico y peatones.
+- **Split de entrenamiento:** semillas 100–119 (pico en H1; valle, pico y evento desde H2). Cada episodio toma un archivo al azar de este split.
+- **Split de evaluación:** semillas 0–4 por escenario, nunca vistas en el entrenamiento (objetivo del 15 % medido aquí).
+- `scenarios/<zona>/demand/manifest.csv` registra split, escenario, semilla, archivo y conteos; un test verifica que los splits son disjuntos.
+- Opcional: calibrar volúmenes con aforos reales de Cali (Secretaría de Movilidad o datos abiertos) y citar la fuente.
+- Issues en GitHub: #1 (dataset), #2 (controladores), #3 (PPO), #4 (netedit), milestone «H1 · Demo (29 oct)».
+
 ## 4. Pruebas (FASE 3, transversal)
 - **Unitarias:** red y rutas, fixed y max-pressure, métricas (Jain con casos conocidos: iguales → 1, uno solo → 1/n), observación y recompensa.
 - **Integración:** healthchecks de compose, `/health`, WebSocket con vehículos y tls, accidente cambia el carril.
@@ -128,7 +137,13 @@ PPO α=0 y α=0,3 (≥2 semillas de entrenamiento cada uno), curvas en TensorBoa
 | Mapa web no listo el jueves | e2e falla el 29 a mediodía | gráficas generadas por el contenedor + video de respaldo |
 | Acceso desde otros equipos (WSL2) | `<IP>:8080` no responde | `networkingMode=mirrored` en WSL o `netsh portproxy`; túnel cloudflared (comentado en compose) |
 
-## 6. Preguntas abiertas
+## 6. Decisiones tomadas (27 oct)
+- Zona demo: **Av. Roosevelt (OSM `Calle 6`, `alt_name=Avenida Roosevelt`) entre Cra 34 y Cra 39**: 4 tls (Cra 34, Cra 36, Cra 36A Bis, Cra 39), recortada con `--keep-edges.in-geo-boundary`; `scenarios/roosevelt4/osm.xml` versionado. El corredor H2 puede extenderse hasta Cra 42/44 (5.º tls en Cra 42) y más al sur.
+- Python 3.11 en la imagen oficial vía `uv` (equivalente a deadsnakes, sin depender del PPA).
+- Contenedores corren con el UID/GID del host (archivos de `scenarios/`, `models/`, `outputs/` no quedan como root).
+- Sin MCP de Playwright por ahora; e2e en contenedor.
+
+## 7. Preguntas abiertas
 1. **Zona exacta de Cali.** No pude verificar hoy los semáforos en OSM (Overpass saturado); lo hago primero en H1. Recomendación: **Av. Roosevelt entre Cra 34 y Cra 44** (no tiene troncal MIO, así que la red es más limpia). Alternativa: **Calle 5 entre Cra 34 y Cra 44** (más emblemática, pero con carriles exclusivos del MIO). ¿Cuál prefieren, o tienen otro tramo? ¿Y cuál debe ser el corredor completo de H2 (6–9 tls)?
 2. **Python 3.11 sobre la imagen oficial de SUMO** (que trae 3.10): ¿aprueban instalar 3.11 desde deadsnakes dentro de la imagen? La alternativa es aceptar 3.10.
 3. **MCP de Playwright:** existe como plugin oficial (`playwright@claude-plugins-official`, ejecuta `npx @playwright/mcp@latest` en el host). ¿Lo añado a `.mcp.json`? Sin él, los e2e igual corren en contenedor.
