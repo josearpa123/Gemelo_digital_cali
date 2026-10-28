@@ -4,6 +4,23 @@ Registro de qué se hizo y qué sigue. La entrada más reciente va primero. El h
 
 Formato: `## <fecha> · <autor> · <rama>`, luego `HEAD`, **Hecho**, **Siguiente** y **Bloqueos**.
 
+## 2026-10-28 (cierre) · Jose (con Claude Code) · feat/h1-demo
+
+HEAD `ver git log`
+
+**Hecho**
+- Panel (`sim-api`, `web`) apagado con `docker compose down`.
+- Entrenamientos dejados corriendo hasta terminar solos (solo guardan el modelo al final): `train_a0_s0` en ~1,23M/3M y `train_a0.3_s0` en ~0,98M/3M timesteps al cierre. Al terminar quedan en `models/ppo_roosevelt4_a0_s0_*` y `models/ppo_roosevelt4_a0.3_s0_*`.
+
+**Siguiente (mañana)**
+- Comprobar que terminaron: `docker ps -a --filter name=train_` (estado `Exited (0)`) y `ls models/`. Si el equipo se apagó antes, relanzar: `make train ALPHA=0 SEED=0` y `make train ALPHA=0.3 SEED=0 ENVS=3`.
+- Limpiar los contenedores terminados: `docker rm train_a0_s0 train_a0.3_s0`.
+- Milton: #2 (max-pressure, prioridad), #8 (evaluación con los modelos nuevos), #3, #1, #4. Juntos: #9 ensayo de la demo.
+- Levantar el panel: `make up` → http://localhost:8080.
+
+**Bloqueos**
+- Milton aún no es colaborador del repo.
+
 ## 2026-10-28 · Jose (con Claude Code) · feat/h1-demo
 
 HEAD `ver git log`
