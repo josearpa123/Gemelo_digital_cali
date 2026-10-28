@@ -3,15 +3,71 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Gemelo digital Cali</title>
+  <title>Gemelo digital · Av. Roosevelt, Cali</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <h1>Gemelo digital de movilidad · Cali</h1>
-  <p>sim-api: <span id="health">consultando…</span></p>
-  <script>
-    fetch("/health").then(r => r.json())
-      .then(h => { document.getElementById("health").textContent = `${h.status} · ${h.sumo}`; })
-      .catch(e => { document.getElementById("health").textContent = `error: ${e}`; });
-  </script>
+  <header>
+    <div>
+      <h1>Gemelo digital de movilidad · Cali</h1>
+      <p class="sub">Av. Roosevelt (Calle 6), Cra 34 a Cra 39 · 4 intersecciones semaforizadas · SUMO en vivo</p>
+    </div>
+    <div class="status"><span id="conn" class="dot"></span><span id="clock">t = 0 s</span></div>
+  </header>
+
+  <main>
+    <section id="map" aria-label="Mapa en vivo"></section>
+
+    <aside>
+      <div class="card">
+        <h2>Estrategia</h2>
+        <div id="strategies" class="seg"></div>
+        <div class="row">
+          <button id="restart" title="Reinicia la simulación desde t = 0 con el mismo tráfico">↺ Reiniciar con esta estrategia</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Simulación</h2>
+        <div class="row">
+          <button id="pause">⏸ Pausar</button>
+          <label>Velocidad
+            <select id="speed"></select>
+          </label>
+        </div>
+        <div class="row">
+          <button id="accident" class="danger">⚠ Provocar accidente</button>
+          <button id="demand">🌙 Pasar a hora valle</button>
+        </div>
+      </div>
+
+      <div class="card kpis">
+        <div><span id="k-veh">0</span><small>vehículos en red</small></div>
+        <div><span id="k-queue">0</span><small>detenidos en semáforos</small></div>
+        <div><span id="k-wait">0 s</span><small>espera media por viaje</small></div>
+        <div><span id="k-arr">0</span><small>viajes completados</small></div>
+      </div>
+
+      <div class="card">
+        <h2>Espera media de vehículos en red (s)</h2>
+        <canvas id="chart-wait" height="150"></canvas>
+      </div>
+      <div class="card">
+        <h2>Vehículos detenidos en los semáforos</h2>
+        <canvas id="chart-queue" height="150"></canvas>
+      </div>
+      <p class="legend">
+        <i class="lg car"></i>carro <i class="lg moto"></i>moto
+        <i class="lg sg"></i>verde <i class="lg sy"></i>amarillo <i class="lg sr"></i>rojo
+      </p>
+    </aside>
+  </main>
+
+  <div id="error" hidden></div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>

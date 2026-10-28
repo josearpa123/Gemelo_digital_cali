@@ -2,7 +2,7 @@ SHELL := /bin/bash
 RUN_SIM := docker compose run --rm --no-deps sim-api
 RUN_TRAIN := docker compose --profile train run --rm trainer
 
-.PHONY: build up down ps logs test test-all train-smoke grid demo demo-check dataset train tensorboard
+.PHONY: build up down ps logs test test-all train-smoke grid demo demo-check dataset train tensorboard e2e
 
 build:
 	docker compose --profile train build
@@ -59,3 +59,9 @@ train:
 tensorboard:
 	docker compose --profile train up -d tensorboard
 	@echo "http://localhost:6006"
+
+PLAYWRIGHT_IMAGE := mcr.microsoft.com/playwright/python:v1.55.0-noble
+
+e2e:
+	docker run --rm --network host -u "$$(id -u):$$(id -g)" -e HOME=/tmp -v "$$PWD:/app" -w /app \
+		$(PLAYWRIGHT_IMAGE) sh -c "pip install -q --user playwright==1.55.0 && python tests/e2e/panel_e2e.py http://localhost:8080"

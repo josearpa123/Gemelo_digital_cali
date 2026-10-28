@@ -46,6 +46,16 @@ Aprendizaje por refuerzo multiagente (**MARL**): un agente por semáforo, todos 
 - 35 % de motos (vClass `motorcycle`); los viajes entran y salen por los bordes de la red, con mayor peso en la Roosevelt y sus transversales semaforizadas.
 - `scenarios/roosevelt4/demand/manifest.csv` registra cada archivo con sus conteos.
 
+## Panel en vivo
+
+<p align="center">
+  <img src="docs/img/panel_demo.png" alt="Panel web: mapa de Cali con vehículos, semáforos por carril, accidente activo y gráficas" width="900">
+  <br>
+  <sub>Captura tomada por la prueba end-to-end (Playwright): tiempo fijo en hora pico con un accidente que cierra un carril de la Roosevelt (⚠️). Cada punto de color en las intersecciones es el semáforo de un carril.</sub>
+</p>
+
+Controles: estrategia (tiempo fijo · max-pressure · agentes RL), reiniciar con el mismo tráfico para comparar, pausa, velocidad (1×–50×), provocar/despejar accidente y cambiar entre hora pico y valle. Las gráficas guardan una serie por corrida para comparar estrategias lado a lado.
+
 ## Arquitectura
 
 ```mermaid
@@ -81,6 +91,7 @@ open http://localhost:8080
 | `make train ALPHA=0 SEED=0` | entrenamiento PPO en segundo plano (`docker logs -f train_a0_s0`) |
 | `make tensorboard` | curvas de entrenamiento en `http://localhost:6006` |
 | `make demo` | levanta el sistema y corre la checklist de la demo |
+| `make e2e` | prueba del panel en un navegador real (Playwright en Docker), capturas en `outputs/e2e/` |
 | `docker compose run --rm sim-api python -m sim.network.build_osm --zone roosevelt4` | regenera la red desde OSM |
 
 Desde otro equipo de la misma red: `http://<IP-del-equipo>:8080`.
@@ -90,7 +101,7 @@ Desde otro equipo de la misma red: `http://<IP-del-equipo>:8080`.
 | Hito | Fecha | Estado |
 |---|---|---|
 | H0 · Workspace, Docker y hooks | 27 oct | ✅ |
-| H1 · Demo (red real, pico con motos, 3 estrategias, mapa en vivo) | 29 oct | 🔄 red ✅ · dataset ✅ · entrenamiento PPO ✅ en marcha · panel web en curso |
+| H1 · Demo (red real, pico con motos, 3 estrategias, mapa en vivo) | 29 oct | 🔄 red ✅ · dataset ✅ · panel web ✅ · PPO entrenando · max-pressure pendiente (#2) |
 | H2 · Corredor completo (6–9 tls), peatones, 3 escenarios | 2 nov | ⏳ |
 | H3 · MARL independiente vs coordinado (α = 0 vs 0,3) | 9 nov | ⏳ |
 | H4 · Evaluación 5 semillas, tablas, figuras, informe | 16 nov | ⏳ |

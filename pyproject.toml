@@ -14,4 +14,4 @@ select = ["E", "F", "I", "UP", "B"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 markers = ["slow: long-running tests (training, full episodes)"]
-addopts = "-ra"
+addopts = "-ra -p no:cacheprovider"
