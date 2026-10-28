@@ -1,0 +1,4 @@
+<additional>
+    <vType id="car" vClass="passenger" color="0,172,193"/>
+    <vType id="moto" vClass="motorcycle" length="2.2" maxSpeed="22" color="251,140,0"/>
+</additional>

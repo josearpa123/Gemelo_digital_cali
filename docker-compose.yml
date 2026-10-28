@@ -9,6 +9,7 @@ x-volumes: &volumes
   # source code mounted read-only so tests and the API always see the working tree
   - ./sim:/app/sim:ro
   - ./api:/app/api:ro
+  - ./rl:/app/rl:ro
   - ./tests:/app/tests:ro
   - ./pyproject.toml:/app/pyproject.toml:ro
 
