@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Gemelo digital Cali</title>
+</head>
+<body>
+  <h1>Gemelo digital de movilidad · Cali</h1>
+  <p>sim-api: <span id="health">consultando…</span></p>
+  <script>
+    fetch("/health").then(r => r.json())
+      .then(h => { document.getElementById("health").textContent = `${h.status} · ${h.sumo}`; })
+      .catch(e => { document.getElementById("health").textContent = `error: ${e}`; });
+  </script>
+</body>
+</html>
