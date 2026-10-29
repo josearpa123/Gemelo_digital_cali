@@ -55,6 +55,14 @@ def main() -> int:
         page.screenshot(path=str(OUT / "panel_accident.png"))
         page.click("#accident")
 
+        page.locator("#strategies button[data-id='maxpressure']").click()
+        page.wait_for_selector("#strategies button[data-id='maxpressure'].active")
+        page.click("#restart")
+        time.sleep(6)
+        snap = api_state(page)["snapshot"]
+        checks.append(("max-pressure activa", snap["strategy"] == "maxpressure" and snap["t"] > 0))
+        page.screenshot(path=str(OUT / "panel_maxpressure.png"))
+
         rl = page.locator("#strategies button[data-id='rl']")
         if rl.is_enabled():
             rl.click()
