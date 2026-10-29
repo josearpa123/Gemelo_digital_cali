@@ -18,9 +18,15 @@ HEAD `ed69113`
   - Valle: 230,0 ± 17,1 vs 174,2 ± 21,0 s (**+24,3 %**, IC95 [+18,9; +29,6]).
 - #4 (parcial, sin netedit): pico s0 con fijo da 4 teletransportes, 2 por atasco y 2 por ceda el paso, ninguno por giro imposible. El programa fijo de netconvert del cluster de la Cra 34 tiene ciclo de **306 s** (9 grupos de 26 s); el de la Cra 39, verdes de 7 s. La línea base no es realista.
 - `make test`: 40 passed, 1 skipped (RL sin modelo). `make train-smoke` OK.
+- Portabilidad: `make doctor`, `tests/portability/`, `make clean-clone-check` y CI en GitHub (Linux uid 1001 + checkout Windows + ruff). CI verde en el PR #12: 65 passed, train-smoke y e2e 7/7.
+- PPO 1M timesteps, 2 envs (`models/ppo_roosevelt4_a0_s0_20261029-1805`, `..._a0.3_s0_...`, ~54 min cada uno). Evaluación completa en `outputs/eval/summary.md` y `goal_check.md` (5 semillas × 1 h). Espera media en pico:
+  - fijo 449,7 ± 25,7 s · max-pressure 484,0 ± 48,2 s · **RL α=0 658,4 ± 35,5 s (−46,9 %, IC95 [−56,2; −37,5])** · RL α=0,3 1.043,8 ± 65,6 s (−133,0 %).
+  - Evento: RL α=0 −45,8 %, α=0,3 −141,5 %. Valle: RL α=0 −31,9 %, α=0,3 peor. **Ningún RL cumple el 15 %**; los dos empeoran frente a tiempo fijo y tienen más teletransportes (α=0: 218,6 en pico vs 10,4 con fijo).
+  - `models/current` → α=0 (el menos malo). Ojo: se eligió con las mismas semillas de evaluación.
+  - Hipótesis (sin verificar): el RL usa `TrafficSignal` de sumo-rl, que salta entre verdes arbitrarios igual que la primera versión de max-pressure, que bloqueaba los clusters unidos. Además 1M timesteps es poco.
 
 **Siguiente**
-- Milton: terminar PPO α=0 y α=0,3 (1M, relanzado con checkpoints) y correr `make evaluate MODELS=...` con valle/pico/evento. Si Jose tiene los modelos de 3M de anoche, evaluar esos.
+- Milton: probar que el RL respete el orden/transiciones del programa (como max-pressure cíclico) o desunir los clusters en netconvert; reentrenar más de 1M. Si Jose tiene los modelos de 3M de anoche, evaluarlos con `make evaluate MODELS=...`.
 - Milton (#4): revisar en netedit y fijar ciclos de tiempo fijo realistas antes de reentrenar.
 - Milton y Jose: #9 ensayo de la demo y video.
 
