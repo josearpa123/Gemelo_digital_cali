@@ -10,6 +10,7 @@ from pathlib import Path
 
 import supersuit as ss
 from stable_baselines3 import PPO
+from stable_baselines3.common.callbacks import CheckpointCallback
 from stable_baselines3.common.utils import set_random_seed
 from stable_baselines3.common.vec_env import VecMonitor
 
@@ -35,6 +36,7 @@ def train(
     num_seconds: int,
     out_root: Path = Path("models"),
     tb_root: Path = Path("outputs/tb"),
+    checkpoint_every: int = 100_000,
 ) -> Path:
     zone = net.parent.name
     run_id = f"ppo_{zone}_a{alpha:g}_s{seed}_{datetime.now():%Y%m%d-%H%M}"
@@ -54,7 +56,13 @@ def train(
         tensorboard_log=str(tb_root),
     )
     started = time.time()
-    model.learn(total_timesteps=timesteps, tb_log_name=run_id)
+    # periodic checkpoints: a crash (or WSL shutting the VM down) must not lose the whole run
+    checkpoints = CheckpointCallback(
+        save_freq=max(1, checkpoint_every // vec.num_envs),
+        save_path=str(out_dir / "checkpoints"),
+        name_prefix="ppo",
+    )
+    model.learn(total_timesteps=timesteps, tb_log_name=run_id, callback=checkpoints)
     out_dir.mkdir(parents=True, exist_ok=True)
     model.save(out_dir / "model.zip")
     vec.close()

@@ -32,8 +32,10 @@ def test_train_1000_timesteps_saves_loadable_model(tmp_path):
         num_seconds=300,
         out_root=tmp_path / "models",
         tb_root=tmp_path / "tb",
+        checkpoint_every=500,
     )
     assert (out / "model.zip").exists()
     assert (out / "config.json").exists()
+    assert list((out / "checkpoints").glob("ppo_*_steps.zip"))
     model = PPO.load(str(out / "model.zip"), device="cpu")
     assert model.observation_space.shape[0] > 0

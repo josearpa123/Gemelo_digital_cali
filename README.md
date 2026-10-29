@@ -90,6 +90,8 @@ open http://localhost:8080
 | `make test` | tests rápidos dentro del contenedor |
 | `make train ALPHA=0 SEED=0` | entrenamiento PPO en segundo plano (`docker logs -f train_a0_s0`) |
 | `make tensorboard` | curvas de entrenamiento en `http://localhost:6006` |
+| `make evaluate MODELS="models/ppo_…" SCENARIOS="valley peak event"` | fijo · max-pressure · RL sobre las semillas de evaluación 0–4 → `outputs/eval/` (`summary.md`, `goal_check.md`) |
+| `make train-smoke` | PPO 1000 timesteps y carga del modelo (test lento) |
 | `make demo` | levanta el sistema y corre la checklist de la demo |
 | `make e2e` | prueba del panel en un navegador real (Playwright en Docker), capturas en `outputs/e2e/` |
 | `docker compose run --rm sim-api python -m sim.network.build_osm --zone roosevelt4` | regenera la red desde OSM |
