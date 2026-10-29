@@ -9,7 +9,7 @@ from pathlib import Path
 import libsumo
 import sumolib
 
-from sim.controllers import FixedTimeController
+from sim.controllers import FixedTimeController, MaxPressureController
 from sim.controllers.base import Controller
 from sim.controllers.rl_policy import RLController, find_model
 
@@ -18,8 +18,11 @@ CORRIDOR = "Calle 6"
 
 
 class SimRunner:
-    def __init__(self, net_file: Path, route_file: Path, seed: int = 0):
+    def __init__(
+        self, net_file: Path, route_file: Path, seed: int = 0, sumo_args: list[str] | None = None
+    ):
         self.net_file = Path(net_file)
+        self.sumo_args = list(sumo_args or [])
         self.route_file = Path(route_file)
         self.seed = seed
         self.net = sumolib.net.readNet(str(self.net_file), withPedestrianConnections=True)
@@ -34,7 +37,7 @@ class SimRunner:
 
     # ---- strategies -------------------------------------------------------------------
     def _available_strategies(self) -> dict:
-        strategies = {"fixed": FixedTimeController}
+        strategies = {"fixed": FixedTimeController, "maxpressure": MaxPressureController}
         model = find_model()
         if model is not None:
             strategies["rl"] = lambda: RLController(str(self.net_file), model)
@@ -46,8 +49,6 @@ class SimRunner:
         out = []
         for key in ("fixed", "maxpressure", "rl"):
             item = {"id": key, "label": labels[key], "available": key in self.strategies}
-            if key == "maxpressure" and key not in self.strategies:
-                item["note"] = "pendiente (issue #2)"
             if key == "rl":
                 item["note"] = self.model_path.parent.name if self.model_path else "sin modelo"
             out.append(item)
@@ -73,6 +74,7 @@ class SimRunner:
                 "--no-warnings",
                 "--waiting-time-memory",
                 "3600",
+                *self.sumo_args,
             ]
         )
         self.running = True
@@ -122,11 +124,29 @@ class SimRunner:
             and any(lane.getID() in controlled for lane in e.getLanes())
         ]
         edge = max(edges, key=lambda e: e.getLength())
-        return edge.getLanes()[edge.getLaneNumber() - 1].getID()
+        lanes = [lane for lane in edge.getLanes() if lane.allows("passenger")]
+        # leftmost lane whose closure keeps every incoming and outgoing movement possible;
+        # otherwise vehicles routed through the closed lane stop SUMO with "no valid route"
+        for lane in reversed(lanes):
+            if self._closable(edge, lane):
+                return lane.getID()
+        return lanes[-1].getID()
 
-    def set_accident(self, active: bool) -> None:
+    @staticmethod
+    def _closable(edge, lane) -> bool:
+        for other in edge.getIncoming():
+            targets = {c.getToLane() for c in other.getConnections(edge)}
+            if targets and targets <= {lane}:
+                return False
+        for other in edge.getOutgoing():
+            sources = {c.getFromLane() for c in edge.getConnections(other)}
+            if sources and sources <= {lane}:
+                return False
+        return True
+
+    def set_accident(self, active: bool, lane: str | None = None) -> None:
         if active and self.accident_lane is None:
-            lane = self.accident_candidate()
+            lane = lane or self.accident_candidate()
             self._accident_allowed = list(libsumo.lane.getAllowed(lane))
             libsumo.lane.setAllowed(lane, ["authority"])
             libsumo.lane.setMaxSpeed(lane, 1.0)
