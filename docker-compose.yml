@@ -10,6 +10,7 @@ x-volumes: &volumes
   - ./sim:/app/sim:ro
   - ./api:/app/api:ro
   - ./rl:/app/rl:ro
+  - ./eval:/app/eval:ro
   - ./tests:/app/tests:ro
   - ./pyproject.toml:/app/pyproject.toml:ro
 

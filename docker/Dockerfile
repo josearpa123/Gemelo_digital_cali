@@ -25,6 +25,7 @@ COPY pyproject.toml ./
 COPY sim ./sim
 COPY api ./api
 COPY rl ./rl
+COPY eval ./eval
 COPY tests ./tests
 EXPOSE 8000
 HEALTHCHECK --interval=10s --timeout=3s --start-period=20s --retries=5 \

@@ -2,7 +2,7 @@ SHELL := /bin/bash
 RUN_SIM := docker compose run --rm --no-deps sim-api
 RUN_TRAIN := docker compose --profile train run --rm trainer
 
-.PHONY: build up down ps logs test test-all train-smoke grid demo demo-check dataset train tensorboard e2e
+.PHONY: build up down ps logs test test-all train-smoke grid demo demo-check dataset train tensorboard e2e evaluate
 
 build:
 	docker compose --profile train build
@@ -55,6 +55,14 @@ train:
 		python -m rl.train --alpha $(ALPHA) --seed $(SEED) --timesteps $(STEPS) \
 		--n-envs $(ENVS) --episode-seconds $(EPISODE)
 	@echo "logs: docker logs -f train_a$(ALPHA)_s$(SEED)  · curvas: make tensorboard"
+
+# strategies x scenarios x evaluation seeds: make evaluate MODELS="models/ppo_a models/ppo_b"
+MODELS ?=
+SCENARIOS ?= peak
+SEEDS ?= 0 1 2 3 4
+evaluate:
+	$(RUN_TRAIN) python -m eval.run_all --scenarios $(SCENARIOS) --seeds $(SEEDS) \
+		$(foreach m,$(MODELS),--models $(m))
 
 tensorboard:
 	docker compose --profile train up -d tensorboard
