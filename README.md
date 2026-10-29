@@ -103,7 +103,7 @@ Desde otro equipo de la misma red: `http://<IP-del-equipo>:8080`.
 | Hito | Fecha | Estado |
 |---|---|---|
 | H0 · Workspace, Docker y hooks | 27 oct | ✅ |
-| H1 · Demo (red real, pico con motos, 3 estrategias, mapa en vivo) | 29 oct | 🔄 red ✅ · dataset ✅ · panel web ✅ · PPO entrenando · max-pressure pendiente (#2) |
+| H1 · Demo (red real, pico con motos, 3 estrategias, mapa en vivo) | 29 oct | 🔄 red ✅ · dataset ✅ · panel web ✅ · max-pressure ✅ · evaluación ✅ · PPO entrenando |
 | H2 · Corredor completo (6–9 tls), peatones, 3 escenarios | 2 nov | ⏳ |
 | H3 · MARL independiente vs coordinado (α = 0 vs 0,3) | 9 nov | ⏳ |
 | H4 · Evaluación 5 semillas, tablas, figuras, informe | 16 nov | ⏳ |

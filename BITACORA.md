@@ -4,6 +4,29 @@ Registro de qué se hizo y qué sigue. La entrada más reciente va primero. El h
 
 Formato: `## <fecha> · <autor> · <rama>`, luego `HEAD`, **Hecho**, **Siguiente** y **Bloqueos**.
 
+## 2026-10-29 · Milton (con Claude Code) · feat/h1-milton-issues
+
+HEAD `ed69113`
+
+**Hecho**
+- #2 Max-pressure (`sim/controllers/maxpressure.py`), registrado en el panel. Versión **cíclica** sobre el programa de SUMO: la versión que salta entre verdes arbitrarios bloqueaba los clusters unidos (pico s0–s1: 1.377–1.449 s de espera media vs 421–448 s con fijo, `outputs/eval_mp_check/`, corrida previa). Presión por carril de entrada (no por enlace) y normalizada por capacidad; verde mín. 10 s (o el programado si es menor), máx. 60 s, decisión cada 5 s. Tests unit (doble de TraCI) + smoke de 300 pasos + e2e (8/8 OK).
+- #1 `tests/unit/test_demand.py` (rutas válidas, 30–40 % motos, semillas disjuntas, reproducible salvo la cabecera con fecha de duarouter) y escenario `event`: `scenarios/roosevelt4/roosevelt4.event.json` (cierre de carril 15:00–35:00), aplicado por `eval/run_all.py`. Bug corregido: el carril del accidente (`1007746271_2`) era la única conexión desde `-203502410#1` y SUMO abortaba con "no valid route"; `accident_candidate` ahora elige un carril que no rompe giros (`1007746271_1`). Afectaba también al botón del panel.
+- #3 `tests/unit/test_rl.py` (tamaño de observación, recompensa calculada una vez por paso, α) y `tests/smoke/test_train_smoke.py`. `rl/train.py` guarda checkpoints cada 100k timesteps.
+- #8 `eval/metrics.py` (Jain), `eval/run_all.py`, `make evaluate`. Corrida real fijo vs max-pressure, 3 escenarios × 5 semillas × 1 h (`outputs/eval/summary.md`, `goal_check.md`):
+  - Pico: espera media fijo 449,7 ± 25,7 s · max-pressure 485,2 ± 50,5 s (−7,9 %, IC95 [−15,1; −0,7]). Jain 0,18 vs 0,24.
+  - Evento: 448,6 ± 21,2 vs 489,9 ± 60,6 s (−9,2 %).
+  - Valle: 230,0 ± 17,1 vs 174,2 ± 21,0 s (**+24,3 %**, IC95 [+18,9; +29,6]).
+- #4 (parcial, sin netedit): pico s0 con fijo da 4 teletransportes, 2 por atasco y 2 por ceda el paso, ninguno por giro imposible. El programa fijo de netconvert del cluster de la Cra 34 tiene ciclo de **306 s** (9 grupos de 26 s); el de la Cra 39, verdes de 7 s. La línea base no es realista.
+- `make test`: 40 passed, 1 skipped (RL sin modelo). `make train-smoke` OK.
+
+**Siguiente**
+- Milton: terminar PPO α=0 y α=0,3 (1M, relanzado con checkpoints) y correr `make evaluate MODELS=...` con valle/pico/evento. Si Jose tiene los modelos de 3M de anoche, evaluar esos.
+- Milton (#4): revisar en netedit y fijar ciclos de tiempo fijo realistas antes de reentrenar.
+- Milton y Jose: #9 ensayo de la demo y video.
+
+**Bloqueos**
+- En este equipo la VM de WSL se congela por falta de RAM en Windows (438 MB libres de 16 GB con un juego abierto): se perdieron 2 entrenamientos (sin checkpoints). Ahora guarda cada 100k.
+
 ## 2026-10-28 (cierre) · Jose (con Claude Code) · feat/h1-demo
 
 HEAD `ver git log`
