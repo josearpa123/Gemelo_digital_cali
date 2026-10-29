@@ -1,0 +1,73 @@
+name: ci
+
+on:
+  push:
+    branches: [main, "feat/**"]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Fresh Linux machine (runner uid is 1001, not 1000): the full path a new teammate follows.
+  linux:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: doctor
+        run: make doctor
+      - name: build
+        run: make build
+      - name: dataset reproduces manifest.csv
+        run: |
+          make dataset
+          git diff --exit-code -- scenarios/roosevelt4/demand/manifest.csv
+      - name: fast tests (unit, integration, smoke, portability)
+        run: make test
+      - name: slow tests (short PPO training)
+        run: make train-smoke
+      - name: panel up + demo checklist
+        run: |
+          make up
+          for i in $(seq 1 40); do curl -fsS http://localhost:8080/health >/dev/null && break; sleep 3; done
+          make demo-check
+      - name: e2e (Playwright)
+        run: make e2e
+      - name: no tracked file modified by the run
+        run: git status --porcelain --untracked-files=no | { ! grep .; }
+      - name: logs on failure
+        if: failure()
+        run: docker compose logs --tail=200 sim-api web
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-screenshots
+          path: outputs/e2e/
+          if-no-files-found: ignore
+
+  # Windows clone with Git's default core.autocrlf=true must still give LF scripts.
+  windows-checkout:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - run: git config --global core.autocrlf true
+      - uses: actions/checkout@v4
+      - name: no CRLF in the working tree
+        shell: bash
+        run: |
+          bad=$(git ls-files --eol | awk '$2 ~ /crlf/ {print $NF}')
+          if [ -n "$bad" ]; then echo "CRLF en: $bad"; exit 1; fi
+          if grep -l $'\r' Makefile .claude/hooks/*.sh scripts/*.sh; then exit 1; fi
+
+  lint:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/ruff-action@v3
+        with:
+          version: "0.14.0"
+      - run: ruff format --check .

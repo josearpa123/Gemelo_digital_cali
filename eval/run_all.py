@@ -160,7 +160,7 @@ def goal_check(rows: list[dict], scenario: str = "peak") -> str:
 
 def write_csv(path: Path, rows: list[dict]) -> None:
     with path.open("w", newline="") as fh:
-        writer = csv.DictWriter(fh, fieldnames=list(rows[0]))
+        writer = csv.DictWriter(fh, fieldnames=list(rows[0]), lineterminator="\n")
         writer.writeheader()
         writer.writerows(rows)
 

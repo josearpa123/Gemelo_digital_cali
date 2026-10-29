@@ -1,0 +1,6 @@
+# Same bytes on every machine: Git for Windows (core.autocrlf=true) would otherwise check out
+# CRLF and break the shell hooks/scripts and the Makefile inside Linux containers.
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.zip binary

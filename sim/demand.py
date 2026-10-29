@@ -139,7 +139,7 @@ def build_dataset(net_file: Path) -> Path:
         rows.append(row | count_types(routes))
     manifest = demand_dir(net_file) / "manifest.csv"
     with manifest.open("w", newline="") as fh:
-        writer = csv.DictWriter(fh, fieldnames=list(rows[0]))
+        writer = csv.DictWriter(fh, fieldnames=list(rows[0]), lineterminator="\n")
         writer.writeheader()
         writer.writerows(rows)
     return manifest

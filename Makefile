@@ -1,8 +1,24 @@
 SHELL := /bin/bash
+# containers run as the host user (docker-compose.yml: ${UID}:${GID}); bash does not export
+# UID, so without this every machine whose uid is not 1000 gets permission errors
+export UID := $(shell id -u)
+export GID := $(shell id -g)
 RUN_SIM := docker compose run --rm --no-deps sim-api
 RUN_TRAIN := docker compose --profile train run --rm trainer
 
-.PHONY: build up down ps logs test test-all train-smoke grid demo demo-check dataset train tensorboard e2e evaluate
+.PHONY: build up down ps logs test test-all train-smoke grid demo demo-check dataset train tensorboard e2e evaluate doctor test-portability clean-clone-check
+
+# host preflight for a new machine (tools, memory, ports, permissions, stale image)
+doctor:
+	@bash scripts/doctor.sh
+
+# portability checks inside the container (versions, permissions, reproducible dataset)
+test-portability:
+	$(RUN_SIM) pytest -q tests/portability
+
+# fresh clone of HEAD in a temp dir: doctor + build + dataset + full test suite
+clean-clone-check:
+	bash scripts/clean_clone_check.sh
 
 build:
 	docker compose --profile train build
