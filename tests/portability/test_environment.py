@@ -40,7 +40,7 @@ def test_installed_versions_match_requirements(name, version):
 def test_python_and_sumo_versions():
     assert sys.version_info[:2] == (3, 11)
     out = subprocess.run(["sumo", "--version"], capture_output=True, text=True).stdout
-    assert re.search(r"sumo 1\.28\.0", out), out.splitlines()[:1]
+    assert re.search(r"sumo 1\.28\.0", out), out.splitlines()[:1]
     assert os.environ.get("SUMO_HOME") and Path(os.environ["SUMO_HOME"]).is_dir()
 
 
