@@ -13,8 +13,10 @@ Respuestas y documentación en español. Código, nombres de archivo, commits y 
 ```
 sim/        red (OSM→netconvert), demanda, controladores (fixed, maxpressure), runner TraCI
 rl/         entorno multiagente (sumo-rl/PettingZoo), observación, recompensa, train, evaluate
-api/        FastAPI: /health, /api/network, /api/control, /ws/state
-web/        HTML/JS estático (Leaflet, Chart.js) servido por nginx
+api/        FastAPI: /health, /api/network, /api/control, /ws/state, /api/traces*, /api/faults, /api/assistant, /api/llm/*; sirve web/ en :8000
+web/        HTML/JS estático (Leaflet, Chart.js) servido por sim-api (nginx :8080 opcional, perfil `nginx`)
+config/     precios del LLM, nombres de intersecciones
+secrets/    clave del LLM puesta desde el panel — no versionado, no leer
 eval/       métricas (incluido índice de Jain), corrida 3×3×5, tablas y figuras
 scenarios/  redes y demanda de Cali (.net.xml, .rou.xml, .sumocfg)   [volumen]
 models/     modelos entrenados — GENERADO, no editar a mano         [volumen]
@@ -26,14 +28,17 @@ docker/     Dockerfiles (sim, trainer) y nginx.conf
 ## Comandos clave
 | Comando | Qué hace |
 |---|---|
-| `make up` | `docker compose up -d --build` (sim-api + web) |
+| `make up` | `docker compose up -d --build sim-api` (panel, API y trazas en `http://localhost:8000`) |
 | `make test` | `pytest -m "not slow"` dentro de sim-api |
 | `make test-all` | toda la suite, incluidos `slow` |
 | `make train-smoke` | PPO 1000 timesteps en trainer; verifica que el modelo carga |
 | `make train ...` | entrenamiento real en segundo plano (ver skill `train-agent`) |
 | `make evaluate` | 3 estrategias × 3 escenarios × 5 semillas (skill `evaluate-strategies`) |
 | `make demo` | levanta y corre la checklist de demo (skill `run-demo`) |
-| `make e2e` | Playwright en contenedor contra `web` |
+| `make e2e` | Playwright en contenedor contra el panel en `:8000` |
+| `make test-live` | **una** llamada real a Groq (marcador `live`; nunca en `make test`) |
+| `make bench-tracing` | costo del trazado sobre el RTF → `outputs/bench/tracing.json` (meta ≤ 5 %) |
+| `scripts/medir_arranque.sh` / `.ps1` | `docker compose up -d --build` y minutos hasta que responde `localhost:8000` |
 
 ## Convenciones
 - **Todo corre en Docker.** Cualquier comando de Python o SUMO: `docker compose run --rm sim-api <cmd>` (o `trainer` para RL). No instalar SUMO ni paquetes de Python en el host. Nada de `sumo-gui` en contenedores.
@@ -55,6 +60,14 @@ Un hito está terminado cuando (a) todos sus criterios de `PLAN.md` tienen un te
 - **H2 (2 nov)**: corredor de 6–9 tls revisado en netedit, peatones, 3 escenarios, mapa completo.
 - **H3 (9 nov)**: MARL α=0 vs α=0,3 entrenados y comparados; recompensa ajustada.
 - **H4 (16 nov)**: evaluación 5 semillas, tablas, figuras, verificación ≥15 %, panel final, README.
+- **H-TRAZAS (30 oct – 3 nov)**: trazas de sim/RL/eventos/LLM/entrenamiento (`sim/tracing.py`, SQLite `outputs/traces.db` + `outputs/traces/events.jsonl`), panel «Trazas» con «Armar fallo» (6 fallos, `sim/faults.py`), asistente LLM (`api/llm/`) que **no controla semáforos**, panel servido en `:8000`, costo del trazado ≤ 5 %.
+
+## Asistente de IA y trazas
+- Variables (archivo de entorno, ver `.env.example`): `LLM_PROVIDER` (`groq` · `openai_compat` · `fake`), `LLM_MODEL`, `LLM_BASE_URL`, `LLM_PLAN` (`free` → costo real US$ 0), `GROQ_API_KEY`. La clave también se puede poner desde el panel: queda en `secrets/llm_api_key` (modo 600, ignorado por git) y gana sobre la del archivo de entorno.
+- Precios y límites del proveedor en `config/llm_pricing.yaml` (con fuente y fecha); nombres de intersecciones en `config/intersections.yaml`.
+- Los tests usan `LLM_PROVIDER=fake` (lo fija `tests/conftest.py`): **nunca** llamadas reales en tests automáticos.
+- Las acciones del LLM pasan por la lista blanca de `api/llm/actions.py` (Pydantic) antes de tocar la simulación.
+- Nada en `sim/` o `rl/` debe escribir trazas fuera de `Tracer.emit`; lo caro (recompensa, aproximaciones) se calcula solo si `tracer.enabled`.
 
 ## Hooks (`.claude/hooks/`, registrados en `.claude/settings.json`)
 - PreToolUse Bash: bloquea `rm -rf /` o `~`, `docker system prune -a`, `git push --force` a main y acceso a `.env`.
