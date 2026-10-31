@@ -4,6 +4,22 @@ Registro de qué se hizo y qué sigue. La entrada más reciente va primero. El h
 
 Formato: `## <fecha> · <autor> · <rama>`, luego `HEAD`, **Hecho**, **Siguiente** y **Bloqueos**.
 
+## 2026-10-31 · Thunderbolt (con Claude Code) · feat/h-traces
+
+**Hecho**
+- El caos con «Agentes RL» venía del agente, no del LLM. El modelo de este equipo es el de humo (2048 timesteps) y usa el `TrafficSignal` de sumo-rl, que salta entre verdes arbitrarios sin los despejes del programa.
+- Nuevo `rl/cyclic_signal.py`: el agente decide **mantener o avanzar** sobre el ciclo del propio programa (como el max-pressure cíclico), con verde mínimo y máximo. Se usa en el entrenamiento (`rl/env.py`) y en vivo con los modelos cuyo `config.json` dice `"signal": "cyclic"`; los modelos viejos siguen con la lógica anterior.
+- Tests `tests/integration/test_cyclic_signal.py`: con acciones aleatorias, cada semáforo solo muestra estados de su programa, avanza en orden y respeta el verde máximo. `make test`: 150 passed. `make train-smoke`: OK.
+- Clave de Groq guardada desde el panel (`secrets/`, fuera de git). Llamada real: `openai/gpt-oss-120b`, 76 + 25 tokens, US$ 0 real (US$ 0,0000264 equivalente), límites de la cuenta: 1 000 peticiones/día y 8 000 tokens/min (cabeceras `x-ratelimit-*`).
+- Push de `feat/h-traces` aprobado por el usuario.
+
+**Siguiente**
+- Mañana (usuario/Milton): entrenamiento largo con el semáforo cíclico, `make train ALPHA=0 SEED=0` (varias horas), y después `make evaluate` contra tiempo fijo y max-pressure. Hasta entonces, el modelo actual sigue siendo el viejo y causa caos: para mostrar el panel usar **Max-pressure**.
+- Usuario: rotar la clave de Groq (se compartió en el chat).
+
+**Bloqueos**
+- Puerto 8000 ocupado en este equipo por otro proyecto: el panel se revisó en `:8001`.
+
 ## 2026-10-30 · Thunderbolt (con Claude Code) · feat/h-traces
 
 HEAD `e540aea`
