@@ -14,7 +14,7 @@ from stable_baselines3.common.callbacks import CallbackList, CheckpointCallback
 from stable_baselines3.common.utils import set_random_seed
 from stable_baselines3.common.vec_env import VecMonitor
 
-from rl.env import DELTA_TIME, make_parallel_env
+from rl.env import DELTA_TIME, SIGNAL, make_parallel_env
 from rl.trace_callback import TRAINING_TRACES, EpisodeTraceCallback
 from sim.demand import train_routes
 
@@ -80,6 +80,7 @@ def train(
         "net": str(net),
         "train_routes": "sim.demand.TRAIN_SEEDS (peak)",
         "alpha": alpha,
+        "signal": SIGNAL,  # cyclic: action 0 keep green, 1 advance along the program
         "seed": seed,
         "timesteps": timesteps,
         "n_envs": n_envs,

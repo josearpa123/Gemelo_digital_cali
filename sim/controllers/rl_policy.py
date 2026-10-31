@@ -122,6 +122,9 @@ class RLController(Controller):
         self.alpha = float(self.config.get("alpha", 0.0))
         self.reward = NeighborReward(alpha=self.alpha)
         self.version = model_version(model_path)
+        # models trained with rl/cyclic_signal.py (action: 0 keep, 1 advance along the
+        # program); older models jump between arbitrary greens with sumo-rl's TrafficSignal
+        self.cyclic = self.config.get("signal") == "cyclic"
         self.fallback: dict[str, float] = {}  # tls -> simulated time when the agent takes over
         self.last_obs: dict[str, np.ndarray] = {}
         self.tracer.emit(
@@ -131,6 +134,7 @@ class RLController(Controller):
                 "modelo": self.version,
                 "alpha": self.alpha,
                 "timesteps": self.config.get("timesteps"),
+                "senal": "cíclica (mantener/avanzar)" if self.cyclic else "salto libre (sumo-rl)",
                 "carga_ms": round((time.perf_counter() - started) * 1000, 1),
             },
         )
@@ -152,9 +156,11 @@ class RLController(Controller):
     def _new_signal(self, tls_id: str, now: int) -> None:
         from sumo_rl.environment.traffic_signal import TrafficSignal
 
+        from rl.cyclic_signal import CyclicTrafficSignal
         from rl.env import DELTA_TIME, MAX_GREEN, MIN_GREEN, YELLOW_TIME
 
-        ts = TrafficSignal(
+        signal_class = CyclicTrafficSignal if self.cyclic else TrafficSignal
+        ts = signal_class(
             self.env,
             tls_id,
             DELTA_TIME,
@@ -262,14 +268,24 @@ class RLController(Controller):
             self._to_fixed(tls_id, now, str(exc) or type(exc).__name__, trace_id)
             return
         action = int(action)
-        # SuperSuit maps padded actions beyond this tls' phases to phase 0
-        chosen = action if action < ts.num_green_phases else 0
+        if self.cyclic:
+            chosen = action  # 0 keep, 1 advance (applied below)
+        else:
+            # SuperSuit maps padded actions beyond this tls' phases to phase 0
+            chosen = action if action < ts.num_green_phases else 0
         if not self.tracer.enabled:  # reward and approaches are computed only for the traces
             ts.set_next_phase(chosen)
             return
         reward = float(self.reward(ts))
         approaches = self._approaches(sumo, tls_id)
         ts.set_next_phase(chosen)
+        cycle = {}
+        if self.cyclic:
+            chosen = ts.next_green() if ts.advanced else previous
+            cycle = {
+                "accion": "avanzar" if action == 1 else "mantener",
+                "forzado_por_verde_maximo": bool(getattr(ts, "forced", False)),
+            }
         top = approaches[0] if approaches else None
         reason = (
             f"mayor cola en {top['via']}: {top['cola']} veh, {top['espera_s']} s de espera"
@@ -294,6 +310,7 @@ class RLController(Controller):
                 "cola_vecinas": neighbors,
                 "inference_ms": round(inference_ms, 3),
                 "modelo": self.version,
+                **cycle,
             },
             sim_t=now,
             tls_id=tls_id,
