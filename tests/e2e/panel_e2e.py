@@ -163,7 +163,22 @@ def main() -> int:
         browser.close()
     for name, ok in checks:
         print(f"{'OK   ' if ok else 'FALLO'} {name}")
-    return 0 if all(ok for _, ok in checks) else 1
+    passed = sum(ok for _, ok in checks)
+    (OUT / "result.json").write_text(
+        json.dumps(
+            {
+                "date": time.strftime("%Y-%m-%dT%H:%M:%S"),
+                "url": URL,
+                "passed": passed,
+                "total": len(checks),
+                "checks": [{"check": n, "ok": ok} for n, ok in checks],
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+    )
+    print(f"{passed}/{len(checks)} → {OUT / 'result.json'}")
+    return 0 if passed == len(checks) else 1
 
 
 if __name__ == "__main__":

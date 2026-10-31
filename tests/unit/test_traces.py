@@ -127,3 +127,13 @@ def test_training_jsonl_is_ingested_once(tracer, tmp_path):
 def test_null_tracer_is_inert():
     t = NullTracer()
     assert t.emit("sim", "x") == {} and t.since(0) == [] and not t.enabled
+
+
+def test_training_line_with_unknown_status_is_kept_as_warning(tracer, tmp_path):
+    folder = tmp_path / "training"
+    folder.mkdir()
+    (folder / "r.jsonl").write_text('{"type": "episodio", "status": "raro", "run_id": "r"}\n')
+    assert tracer.ingest_jsonl(folder) == 1
+    assert tracer.ingest_jsonl(folder) == 0  # offsets saved: no duplicates
+    tracer.flush()
+    assert tracer.query(component="training")[0]["status"] == "warn"

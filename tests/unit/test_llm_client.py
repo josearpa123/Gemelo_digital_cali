@@ -259,3 +259,11 @@ def test_panel_key_is_stored_privately_and_never_returned(make_assistant, tmp_pa
     assert not info["key_configured"] and not (tmp_path / "secrets" / "key").exists()
     with pytest.raises(ValueError):
         a.set_key("short")
+
+
+def test_bad_request_is_not_retried(make_assistant):
+    a, tracer, _ = make_assistant(httpx.Response(400, json={"error": "bad"}))
+    res = run(a.ask("resumen", ""))
+    t = types(tracer, res["trace_id"])
+    assert t.count("llamada_enviada") == 1 and "reintento" not in t
+    assert "error_peticion" in t and t[-1] == "fallback_usado"

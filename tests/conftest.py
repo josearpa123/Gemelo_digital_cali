@@ -8,6 +8,7 @@ import pytest
 os.environ["LLM_PROVIDER"] = "fake"
 _GROQ_KEY = os.environ.pop("GROQ_API_KEY", None)  # only handed to `live` tests
 _TMP = Path(tempfile.mkdtemp(prefix="gemelo_tests_"))
+os.environ["OUTPUTS_DIR"] = str(_TMP / "outputs")  # trace log, checkpoints, training files
 os.environ.setdefault("TRACES_DB", str(_TMP / "traces.db"))
 os.environ["LLM_KEY_FILE"] = str(_TMP / "secrets" / "llm_api_key")  # never the real secrets/
 

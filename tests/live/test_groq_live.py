@@ -6,15 +6,15 @@ import json
 
 import pytest
 
-from api.llm.client import LLMSettings, OpenAICompatClient
+from api.llm.client import DEFAULTS, LLMSettings, OpenAICompatClient
 from api.llm.pricing import costs, load_pricing, prices_for
 
 pytestmark = pytest.mark.live
 
 
 def test_one_real_groq_call(groq_key):
-    settings = LLMSettings.from_env()
-    settings.provider, settings.api_key = "groq", groq_key
+    model, base_url, _ = DEFAULTS["groq"]  # conftest sets LLM_PROVIDER=fake for other tests
+    settings = LLMSettings("groq", model, base_url, groq_key, "free", "low")
     result = asyncio.run(
         OpenAICompatClient(settings).complete([{"role": "user", "content": "Responde solo: OK"}])
     )

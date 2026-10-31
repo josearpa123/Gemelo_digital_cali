@@ -12,7 +12,9 @@ from sim.tracing import Tracer
 NET = "scenarios/roosevelt4/roosevelt4.net.xml"
 ROUTES = "scenarios/roosevelt4/demand/peak_s0.rou.xml"
 
-pytestmark = pytest.mark.skipif(find_model() is None, reason="no trained model in models/")
+# only the RL tests need a trained model (models/ is not versioned); the rest run anywhere
+needs_model = pytest.mark.skipif(find_model() is None, reason="no trained model in models/")
+STRATEGIES = ["fixed", pytest.param("rl", marks=needs_model)]
 
 
 @pytest.fixture
@@ -38,6 +40,7 @@ def of(tracer, type_):
     return [e for e in tracer.all_events() if e["type"] == type_]
 
 
+@needs_model
 def test_300_rl_steps_trace_decisions_for_every_intersection(traced):
     runner, tracer, _ = traced
     runner.start("rl")
@@ -90,6 +93,7 @@ def test_accident_event_measures_its_impact_after_two_minutes(traced):
     )
 
 
+@needs_model
 def test_rl_no_response_sends_that_tls_to_fixed_time_once(traced):
     runner, tracer, faults = traced
     runner.start("rl")
@@ -109,6 +113,7 @@ def test_rl_no_response_sends_that_tls_to_fixed_time_once(traced):
     assert len(of(tracer, "fallback_control")) == 1
 
 
+@needs_model
 def test_detector_loss_uses_the_last_valid_observation(traced):
     runner, tracer, faults = traced
     runner.start("rl")
@@ -123,9 +128,10 @@ def test_detector_loss_uses_the_last_valid_observation(traced):
     assert of(tracer, "fallback_control") == []  # the agent kept deciding
 
 
-def test_traci_disconnect_reconnects_and_resumes_the_scenario(traced):
+@pytest.mark.parametrize("strategy", STRATEGIES)
+def test_traci_disconnect_reconnects_and_resumes_the_scenario(traced, strategy):
     runner, tracer, faults = traced
-    runner.start("rl")
+    runner.start(strategy)
     for _ in range(50):
         runner.step()
     runner.set_accident(True)
@@ -153,6 +159,7 @@ def test_fault_catalogue_matches_the_panel_options():
     }
 
 
+@needs_model
 def test_fast_reward_terms_match_sumo_rl(traced):
     """The cached waiting time and the pressure without pedestrian lanes give the same values
     as sumo-rl's own TrafficSignal methods."""
