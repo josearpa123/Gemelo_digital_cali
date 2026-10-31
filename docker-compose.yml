@@ -12,6 +12,10 @@ x-volumes: &volumes
   - ./rl:/app/rl:ro
   - ./eval:/app/eval:ro
   - ./tests:/app/tests:ro
+  - ./web:/app/web:ro
+  - ./config:/app/config:ro
+  # LLM key typed in the panel (mode 600, ignored by git)
+  - ./secrets:/app/secrets
   - ./pyproject.toml:/app/pyproject.toml:ro
 
 services:
@@ -31,9 +35,18 @@ services:
     volumes: *volumes
     environment:
       SCENARIO: ${SCENARIO:-}
+      # LLM assistant: values come from the project's env file (see env.example); the key is
+      # never logged, traced or returned by the API
+      LLM_PROVIDER: ${LLM_PROVIDER:-groq}
+      LLM_MODEL: ${LLM_MODEL:-}
+      LLM_BASE_URL: ${LLM_BASE_URL:-}
+      LLM_PLAN: ${LLM_PLAN:-free}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
     restart: unless-stopped
 
+  # optional: the panel is served by sim-api on :8000; nginx on :8080 only with --profile nginx
   web:
+    profiles: ["nginx"]
     image: nginx:alpine
     ports: ["8080:80"]
     volumes:
