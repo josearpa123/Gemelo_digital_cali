@@ -1,0 +1,26 @@
+# List prices of the LLM providers (US$ per million tokens) and plan limits.
+# Free plan: real cost is US$ 0; the panel also shows the equivalent paid cost.
+groq:
+  source: https://console.groq.com/docs/model/openai/gpt-oss-120b
+  verified: 2026-10-30
+  models:
+    openai/gpt-oss-120b:
+      input_per_mtok: 0.15
+      cached_input_per_mtok: 0.075
+      output_per_mtok: 0.60
+  # https://console.groq.com/docs/rate-limits (verified 2026-10-30). The page does not say
+  # whether these are the free-plan values; the `live` test reads the x-ratelimit-* headers.
+  limits:
+    requests_per_minute: 30
+    requests_per_day: 1000
+    tokens_per_minute: 8000
+    tokens_per_day: 200000
+openai_compat:
+  # local Ollama and similar servers: no per-token price
+  models: {}
+  limits:
+    requests_per_minute: 600
+fake:
+  models: {}
+  limits:
+    requests_per_minute: 600
