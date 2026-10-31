@@ -49,6 +49,14 @@ def sumo_version() -> str:
 SUMO_VERSION = sumo_version()
 
 
+def build_dataset() -> None:
+    """Generate the seeded demand dataset (same as `make dataset`, about 6 s)."""
+    print("routes missing: generating the demand dataset (python -m sim.demand --dataset)")
+    subprocess.run(
+        ["python", "-m", "sim.demand", "--dataset", "--net", str(NET)], check=False, timeout=600
+    )
+
+
 class SimState:
     def __init__(self):
         # libsumo must always be driven from the same thread
@@ -196,6 +204,8 @@ async def lifespan(_app):
     state.assistant = Assistant(make_client(), state.tracer, state.faults, load_pricing(), Bridge())
     if state.assistant.client.settings.api_key:  # key saved from the panel earlier
         state.tracer.add_secret(state.assistant.client.settings.api_key)
+    if AUTOSTART and NET.exists() and not ROUTES.exists():
+        await asyncio.to_thread(build_dataset)  # fresh clone: route files are not versioned
     if AUTOSTART and NET.exists() and ROUTES.exists():
         state.runner = SimRunner(
             NET, ROUTES, tracer=state.tracer, faults=state.faults, state_dir=outputs / "state"

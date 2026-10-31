@@ -382,10 +382,11 @@ class Tracer:
                         item = json.loads(raw)
                     except json.JSONDecodeError:
                         continue
+                    status = item.pop("status", "ok")
                     self.emit(
                         "training",
-                        item.pop("type", "episodio"),
-                        item.pop("status", "ok"),
+                        str(item.pop("type", "episodio")),
+                        status if status in STATUSES else "warn",
                         data=item,
                         trace_id=item.get("run_id"),
                     )

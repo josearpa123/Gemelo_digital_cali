@@ -12,7 +12,8 @@ start=$(date +%s)
 echo "[$(date '+%H:%M:%S')] docker compose up -d --build sim-api"
 docker compose up -d --build sim-api
 echo "[$(date '+%H:%M:%S')] esperando a $URL ..."
-until curl -fsS -o /dev/null "$URL/" 2>/dev/null && curl -fsS "$URL/health" 2>/dev/null | grep -q '"status":"ok"'; do
+# the panel counts as "up" when the page loads and the simulation answers (not just /health)
+until curl -fsS -o /dev/null "$URL/" 2>/dev/null && curl -fsS -o /dev/null "$URL/api/strategies" 2>/dev/null; do
   if (( $(date +%s) - start > MAX_MIN * 60 )); then
     echo "No respondió en $MAX_MIN minutos. Revisa: docker compose logs sim-api" >&2
     exit 1

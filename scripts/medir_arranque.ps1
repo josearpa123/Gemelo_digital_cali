@@ -17,8 +17,9 @@ Write-Host ("[{0:HH:mm:ss}] esperando a $Url ..." -f (Get-Date))
 while ($true) {
   try {
     $page = Invoke-WebRequest -Uri "$Url/" -UseBasicParsing -TimeoutSec 5
-    $health = Invoke-RestMethod -Uri "$Url/health" -TimeoutSec 5
-    if ($page.StatusCode -eq 200 -and $health.status -eq "ok") { break }
+    # the panel counts as "up" when the page loads and the simulation answers (not just /health)
+    $sim = Invoke-WebRequest -Uri "$Url/api/strategies" -UseBasicParsing -TimeoutSec 5
+    if ($page.StatusCode -eq 200 -and $sim.StatusCode -eq 200) { break }
   } catch { }
   if ($watch.Elapsed.TotalMinutes -gt $MaxMinutes) {
     Write-Error "No respondio en $MaxMinutes minutos. Revisa: docker compose logs sim-api"

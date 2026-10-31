@@ -12,7 +12,7 @@ import httpx
 
 from api.llm import fallback, keystore
 from api.llm.actions import SCHEMA_HINT, InvalidAction, parse_action
-from api.llm.client import LLMAuthError, LLMClient, LLMError, LLMRateLimit
+from api.llm.client import LLMAuthError, LLMBadRequest, LLMClient, LLMError, LLMRateLimit
 from api.llm.pricing import costs, limits_for, prices_for
 from sim.tracing import new_trace_id
 
@@ -183,7 +183,7 @@ class Assistant:
                 result = await self.client.complete(
                     messages, json_mode=mode == "comando", transport=transport
                 )
-            except LLMAuthError as exc:
+            except (LLMAuthError, LLMBadRequest) as exc:  # not retried: same request, same error
                 self._emit(trace_id, exc.status, "error", error=str(exc), intento=attempt)
                 return None, str(exc)
             except LLMError as exc:

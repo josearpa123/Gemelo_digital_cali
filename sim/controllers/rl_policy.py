@@ -165,7 +165,7 @@ class RLController(Controller):
             "diff-waiting-time",
             self.sumo,
         )
-        # faster equivalents of the reward's two terms (tests/unit/test_rl_tracing.py checks
+        # faster equivalents of the reward's two terms (tests/integration/test_tracing_run.py checks
         # they return the same values as sumo-rl's originals)
         in_lanes, out_lanes = vehicle_lanes(ts.lanes), vehicle_lanes(ts.out_lanes)
         ts.get_pressure = lambda: fast_pressure(ts, in_lanes, out_lanes)

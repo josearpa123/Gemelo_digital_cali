@@ -43,6 +43,12 @@ class LLMAuthError(LLMError):
     status = "error_autenticacion"
 
 
+class LLMBadRequest(LLMError):
+    """4xx other than 401/403/429: retrying the same request cannot help."""
+
+    status = "error_peticion"
+
+
 @dataclass
 class LLMResult:
     text: str
@@ -129,7 +135,8 @@ class OpenAICompatClient(LLMClient):
         transport: httpx.AsyncBaseTransport | None = None,
     ) -> LLMResult:
         s = self.settings
-        if s.provider == "groq" and not s.api_key:
+        # a simulated fault (transport given) must show even without a key
+        if s.provider == "groq" and not s.api_key and transport is None:
             raise LLMAuthError("GROQ_API_KEY no está configurada")
         body = {"model": s.model, "messages": messages, "temperature": 0.2, "max_tokens": 900}
         if json_mode:
@@ -157,7 +164,7 @@ class OpenAICompatClient(LLMClient):
         if res.status_code >= 500:
             raise LLMServerError(f"{res.status_code} error del servidor")
         if res.status_code >= 400:
-            raise LLMServerError(f"{res.status_code} petición rechazada: {res.text[:200]}")
+            raise LLMBadRequest(f"{res.status_code} petición rechazada por el proveedor")
         payload = res.json()
         usage = payload.get("usage") or {}
         cached = (usage.get("prompt_tokens_details") or {}).get("cached_tokens") or 0
