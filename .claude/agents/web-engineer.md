@@ -12,7 +12,7 @@ Eres el ingeniero web del gemelo digital de Cali. Responde en español; código,
 
 ## Reglas
 - Coordenadas siempre con `traci.simulation.convertGeo` (o `sumolib` para la geometría estática); nunca coordenadas inventadas. Mapa centrado en la zona real de Cali.
-- La URL del WebSocket se deriva de `location` (funciona en `localhost:8080` y en `http://<IP>:8080`); nginx hace proxy de `/api` y `/ws` a `sim-api:8000`.
+- La URL del WebSocket se deriva de `location` (funciona en `localhost:8000` y en `http://<IP>:8000`): sim-api sirve `web/`, `/api` y `/ws` en el mismo origen; nginx en `:8080` es opcional (perfil `nginx`).
 - El bucle de simulación vive en una tarea asyncio aparte; los clientes solo leen el último estado (no bloquean SUMO).
 - Diseño: legible en proyector (demo), contraste alto, controles grandes. Usa la skill `frontend-design` si está disponible.
 - Tests: integración del WebSocket con `TestClient`, y e2e con Playwright en contenedor (skill `webapp-testing`).

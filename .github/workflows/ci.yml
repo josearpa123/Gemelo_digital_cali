@@ -32,7 +32,7 @@ jobs:
       - name: panel up + demo checklist
         run: |
           make up
-          for i in $(seq 1 40); do curl -fsS http://localhost:8080/health >/dev/null && break; sleep 3; done
+          for i in $(seq 1 40); do curl -fsS http://localhost:8000/health >/dev/null && break; sleep 3; done
           make demo-check
       - name: e2e (Playwright)
         run: make e2e

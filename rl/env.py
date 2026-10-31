@@ -7,6 +7,7 @@ from pathlib import Path
 import sumo_rl.environment.env as sumo_env
 from pettingzoo.utils.conversions import aec_to_parallel
 
+from rl.cyclic_signal import CyclicTrafficSignal
 from rl.observation import NeighborObservation
 from rl.reward import NeighborReward
 
@@ -33,6 +34,10 @@ class MultiRouteEnvironment(_BaseEnvironment):
 
 # sumo-rl's PettingZoo wrapper instantiates SumoEnvironment by name
 sumo_env.SumoEnvironment = MultiRouteEnvironment
+# and every traffic signal by name: agents keep or advance along the program's own cycle
+# (rl/cyclic_signal.py) instead of jumping between arbitrary greens
+sumo_env.TrafficSignal = CyclicTrafficSignal
+SIGNAL = "cyclic"
 
 
 class MultiRoutePZ(sumo_env.SumoEnvironmentPZ):

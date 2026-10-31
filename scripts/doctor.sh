@@ -55,13 +55,13 @@ if [ "$uid" != 1000 ] && ! printenv UID >/dev/null; then
 else
   ok "uid/gid: $uid:$gid"
 fi
-for d in models outputs scenarios/roosevelt4/demand; do
+for d in models outputs secrets scenarios/roosevelt4/demand; do
   mkdir -p "$d" 2>/dev/null
   [ -w "$d" ] && ok "escribible: $d" || fail "sin permiso de escritura: $d (chown -R $uid:$gid $d)"
 done
 
 # --- ports ----------------------------------------------------------------------------
-for port in 8000 8080; do
+for port in 8000; do
   owner=$(docker ps --format '{{.Names}} {{.Ports}}' 2>/dev/null | grep -E "[:.]$port->" | awk '{print $1}')
   if [ -n "$owner" ]; then
     case "$owner" in gemelo-cali-*) ok "puerto $port: ya lo usa este proyecto ($owner)" ;;

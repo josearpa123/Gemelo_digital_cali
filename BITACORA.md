@@ -4,6 +4,63 @@ Registro de qué se hizo y qué sigue. La entrada más reciente va primero. El h
 
 Formato: `## <fecha> · <autor> · <rama>`, luego `HEAD`, **Hecho**, **Siguiente** y **Bloqueos**.
 
+## 2026-10-31 · Thunderbolt (con Claude Code) · feat/h-traces
+
+**Hecho**
+- El caos con «Agentes RL» venía del agente, no del LLM. El modelo de este equipo es el de humo (2048 timesteps) y usa el `TrafficSignal` de sumo-rl, que salta entre verdes arbitrarios sin los despejes del programa.
+- Nuevo `rl/cyclic_signal.py`: el agente decide **mantener o avanzar** sobre el ciclo del propio programa (como el max-pressure cíclico), con verde mínimo y máximo. Se usa en el entrenamiento (`rl/env.py`) y en vivo con los modelos cuyo `config.json` dice `"signal": "cyclic"`; los modelos viejos siguen con la lógica anterior.
+- Tests `tests/integration/test_cyclic_signal.py`: con acciones aleatorias, cada semáforo solo muestra estados de su programa, avanza en orden y respeta el verde máximo. `make test`: 150 passed. `make train-smoke`: OK.
+- Clave de Groq guardada desde el panel (`secrets/`, fuera de git). Llamada real: `openai/gpt-oss-120b`, 76 + 25 tokens, US$ 0 real (US$ 0,0000264 equivalente), límites de la cuenta: 1 000 peticiones/día y 8 000 tokens/min (cabeceras `x-ratelimit-*`).
+- Push de `feat/h-traces` aprobado por el usuario.
+
+**Siguiente**
+- Mañana (usuario/Milton): entrenamiento largo con el semáforo cíclico, `make train ALPHA=0 SEED=0` (varias horas), y después `make evaluate` contra tiempo fijo y max-pressure. Hasta entonces, el modelo actual sigue siendo el viejo y causa caos: para mostrar el panel usar **Max-pressure**.
+- Usuario: rotar la clave de Groq (se compartió en el chat).
+
+**Bloqueos**
+- Puerto 8000 ocupado en este equipo por otro proyecto: el panel se revisó en `:8001`.
+
+## 2026-10-30 · Thunderbolt (con Claude Code) · feat/h-traces
+
+HEAD `e540aea`
+
+**Hecho**
+- Hito H-TRAZAS implementado (plan en `PLAN.md`):
+  - Trazas de simulación (por segundo simulado), decisiones RL por intersección, eventos con impacto a +120 s, asistente LLM y episodios de entrenamiento.
+  - Almacenamiento en `outputs/traces.db` + `outputs/traces/events.jsonl`; API `/api/traces*` y `/api/faults/arm`; eventos por `/ws/state`.
+- «Armar fallo» con 6 fallos de un solo uso y su respaldo: RL → tiempo fijo, último valor válido, reconexión con `saveState`/`loadState`, reintentos + fallback del LLM y acción rechazada.
+- Asistente de IA (`api/llm/`):
+  - Groq `openai/gpt-oss-120b` configurable por variables de entorno.
+  - Lista blanca de acciones con Pydantic, timeout de 20 s, 2 reintentos exponenciales y fallback por reglas.
+  - Costo real US$ 0 (plan free) y equivalente pago con las tarifas verificadas el 30 oct (`config/llm_pricing.yaml`).
+  - La clave se puede poner desde el panel (`secrets/`, modo 600, nunca se devuelve).
+- Panel servido por FastAPI en `:8000` (nginx `:8080` opcional), rediseñado como centro de mando: mapa nocturno, HUD, sección Trazas y asistente.
+- README: guía desde cero (Win/macOS/Linux), `scripts/medir_arranque.{sh,ps1}` y sección «Prueba del compañero» (tiempo y problemas en blanco).
+- Pruebas:
+  - `make test`: 138 passed, 1 skipped (`live`).
+  - e2e Playwright: 17/17 OK contra la app real (en `:8001`, porque el 8000 de este equipo lo usa otro proyecto); captura en `docs/img/panel_trazas.png`.
+- **Costo del trazado: 8,35 % (> 5 %, no cumple)**: RTF 759 → 686 pasos/s, mediana de 7 pares, `outputs/bench/tracing.json`. La medición fue ruidosa por otros contenedores activos. Detalle y opciones en `PLAN.md`.
+
+**Siguiente**
+- Usuario: decidir cómo bajar el costo del trazado a ≤ 5 % (opciones a/b/c en `PLAN.md`) o medir en un equipo sin carga.
+- Usuario: poner la clave de Groq (panel o archivo de entorno) y correr `make test-live` para confirmar modelo, tokens, costo y límites reales.
+- Alexandra: correr `scripts/medir_arranque.ps1` en Windows y llenar tiempo y problemas en «Prueba del compañero».
+- Claude: volver a pasar el hito por `test-reviewer` cuando se resuelva el costo del trazado.
+
+**Revisión (actualización, misma sesión, HEAD `1ed410e` + docs)**
+- `test-reviewer`: **NO APROBADO**. Ya corregido:
+  - en un clon limpio, `sim-api` genera las rutas de demanda y la simulación arranca; probado en un clon nuevo en el puerto 8002, lista en 16 s con la imagen ya construida;
+  - los fallos del LLM se ven aunque no haya clave;
+  - `make test-live` apunta a Groq y no al servidor falso;
+  - los tests ya no escriben en `outputs/`;
+  - los 4xx no se reintentan;
+  - la ingesta del entrenamiento resiste estados inválidos.
+- `make test`: 147 passed, 1 skipped. e2e 17/17 (`outputs/e2e/result.json`).
+- Sigue abierto: costo del trazado > 5 %. El reviewer midió 15,6 % con `tests/perf`; el último `make bench-tracing` dio 8,35 %.
+
+**Bloqueos**
+- En este equipo el puerto 8000 lo ocupa `oftalmologia-ia-backend-1`: `make up` falla hasta liberarlo.
+
 ## 2026-10-29 · Milton (con Claude Code) · feat/h1-milton-issues
 
 HEAD `ed69113`

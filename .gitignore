@@ -1,5 +1,7 @@
 # secrets
 .env
+secrets/*
+!secrets/.gitkeep
 .env.*
 !.env.example
 # generated artifacts (volumes)

@@ -1,11 +1,12 @@
 # PLAN · Gemelo digital de movilidad urbana · Cali
 
-**Hito actual:** H1 · demo (29 oct): red real lista (Av. Roosevelt, 4 tls); falta demanda, controladores, PPO, API y mapa
+**Hito actual:** H-TRAZAS · trazas, asistente de IA y panel en :8000: implementado (30 oct), pendiente revisión del usuario; trazado cuesta 8,35 % (> 5 %)
 
 | Hito | Fecha | Estado |
 |---|---|---|
 | H0 Workspace + Docker + hooks | 27 oct | ✅ terminado (hooks 29/29, compose healthy, `make test` OK) |
 | H1 Demo | **29 oct** | en curso: red `roosevelt4` ✅ |
+| H-TRAZAS Trazas del sistema + asistente de IA + prueba del compañero | 30 oct – 3 nov | 🔄 implementado; `make test` 138 OK, e2e 17/17; **falta**: costo ≤ 5 % (medido 8,35 %), prueba `live` con clave, medición del compañero |
 | H2 Corredor completo | 2 nov | pendiente |
 | H3 MARL coordinado | 9 nov | pendiente |
 | H4 Evaluación y cierre | 16 nov (entrega 17 nov) | pendiente |
@@ -26,7 +27,7 @@
                          │           /api/control  /ws/state (≈5 Hz)      │
                          └───────────────▲────────────────────────────────┘
                                          │ proxy /api, /ws
- navegador ◄── http://<host>:8080 ── web (nginx:alpine): index.html + Leaflet + Chart.js
+ navegador ◄── http://<host>:8000 ── sim-api sirve web/ (Leaflet + Chart.js); nginx :8080 solo con --profile nginx
 
  trainer (perfil train): libsumo + sumo-rl + SuperSuit + SB3 PPO ──► models/<run_id>/
                                                               └────► outputs/tb/ ──► tensorboard :6006
@@ -100,6 +101,97 @@
 
 Orden de trabajo (28 oct): imágenes Docker → red OSM de 4 tls → demanda → controladores fixed/max-pressure → **lanzar PPO en segundo plano** → runner + FastAPI. (29 oct): mapa + controles + gráficas → cargar PPO → `make demo` + e2e → ensayo + video.
 
+### H-TRAZAS · Trazas del sistema, asistente de IA y prueba del compañero (propuesto 31 oct – 3 nov)
+Objetivo: ver **en vivo y con datos reales** qué hace cada parte del gemelo (SUMO, agentes RL, eventos, asistente LLM, entrenamiento) en una sección **Trazas** del panel en `http://localhost:8000`. El LLM **no controla semáforos**: explica, traduce comandos a acciones de una lista blanca y resume corridas.
+
+**Arquitectura**
+```
+ trainer ──(SB3 callback)──► outputs/traces/training/<run_id>.jsonl ──┐ (sim-api lo sigue con tail)
+                                                                      ▼
+ sim-api (FastAPI :8000) ─ / → web/ (panel, mapa, trazas: StaticFiles)
+   SimRunner (hilo libsumo) ── Tracer.emit(evento) ──► cola en memoria (no bloquea el paso)
+     · sim: agregado por segundo simulado        └► hilo escritor: SQLite outputs/traces.db (lotes)
+     · rl: cada decisión por tls                                   + log JSON por evento (stdout)
+     · event: accidente/demanda/pausa + impacto a +120 s           + difusión por /ws/state
+   FaultInjector (fallo armado, un solo uso)
+   /api/assistant → LLMClient (Groq | openai_compat/Ollama | fake) → Pydantic Action → SimRunner
+```
+Esquema del evento: `trace_id`, `ts` (hora real), `sim_t` (hora simulada), `component` (`sim` · `rl` · `event` · `llm` · `training`), `type`, `status` (`ok` · `warn` · `error` · `fallback`), `tls_id` (si aplica), `data` (JSON propio del tipo). Un `trace_id` agrupa eventos de una misma operación (p. ej. una llamada al LLM con sus reintentos, o un accidente y su impacto).
+
+**Qué se traza**
+| Componente | Eventos y datos |
+|---|---|
+| a) Simulación | `escenario_inicio` / `escenario_fin` (zona `roosevelt4`, escenario, estrategia, semilla) · `sim_segundo`: **agregado** por segundo simulado con vehículos activos por tipo (carro, moto, peatón), latencia media de paso libsumo en ms y factor de tiempo real · `error_traci`, `reconexion` |
+| b) Agentes RL | `decision`: tls y nombre de la intersección (`config/intersections.yaml`, p. ej. "Av. Roosevelt × Cra 39"), fase anterior → elegida, motivo resumido (cola y espera por aproximación observadas), recompensa, α y si usó vecinas, latencia de inferencia ms, versión del modelo · `cambio_estrategia`, `carga_modelo` · `fallback_control`: si un agente falla o tarda > 200 ms, **ese** tls pasa a tiempo fijo · `observacion_incompleta` |
+| c) Eventos | `accidente` (calle, carril, duración), `cambio_demanda`, `pausa`, `reanudacion`, cada uno con **impacto**: espera media y cola al inyectar y 120 s simulados después (evento `impacto` con el mismo `trace_id`) |
+| d) Asistente IA | por llamada: proveedor, modelo, tokens entrada/salida, latencia, costo real, costo equivalente pago y estado (`respuesta_ok`, `accion_validada`, `accion_ejecutada`, `accion_rechazada`, `error_timeout`, `error_limite`, `respuesta_invalida`, `reintento`, `fallback_usado`) |
+| e) Entrenamiento | por episodio: recompensa media, espera media, duración, timesteps acumulados. Callback nuevo en `rl/train.py` escribe JSONL en `outputs/traces/training/`; sim-api lo ingiere. Solo aparece en entrenamientos lanzados después de este hito (los modelos ya entrenados no tienen ese registro) |
+
+Notas honestas sobre el sistema actual:
+- La simulación en vivo usa **libsumo** (en proceso), no un socket TraCI: no hay una "desconexión" real posible. El fallo "Desconexión de TraCI" se implementa como: `saveState` → `libsumo.close()` → nuevo `start` → `loadState`, y el escenario sigue desde el mismo segundo. Los errores reales de libsumo (`TraCIException`/`FatalTraCIError`) usan el mismo camino de reconexión.
+- La estrategia `actuated` es de H2; las trazas cubren las estrategias que existan (hoy: fijo, max-pressure, RL).
+- La red de la demo es la **Av. Roosevelt (Calle 6) entre Cra 34 y Cra 39**. Una pregunta por "Calle 5 con Cra 39" no corresponde a ninguna intersección: el asistente lo dice y propone la más cercana por nombre, no inventa datos.
+
+**Asistente de IA**
+| Variable | Por defecto | Notas |
+|---|---|---|
+| `LLM_PROVIDER` | `groq` | `groq` · `openai_compat` (Ollama u otro) · `fake` (tests y e2e, sin red) |
+| `LLM_MODEL` | `openai/gpt-oss-120b` | |
+| `LLM_BASE_URL` | `https://api.groq.com/openai/v1` | Ollama: `http://host.docker.internal:11434/v1` |
+| `LLM_PLAN` | `free` | `free` → costo real US$ 0,0000; `paid` → costo real = equivalente |
+| `GROQ_API_KEY` | vacío | solo en `.env` (no versionado; `.env.example` sin valores). Nunca en trazas, logs, respuestas ni commits; un test lo verifica |
+
+- **Tarifas verificadas el 30 oct 2026** en `console.groq.com/docs/model/openai/gpt-oss-120b`: US$ 0,15 / M tokens de entrada, 0,075 / M entrada en caché, 0,60 / M salida (coinciden con la referencia del enunciado). Van en `config/llm_pricing.yaml` con fuente y fecha.
+- **Límites**: `console.groq.com/docs/rate-limits` lista para `openai/gpt-oss-120b` 30 RPM, 1 000 RPD, 8 000 TPM y 200 000 TPD, pero no aclara si son los del plan gratis; los valores exactos de la cuenta se confirman con la prueba `live` (cabeceras `x-ratelimit-*`). Se configuran en el YAML; un limitador local de 30 RPM evita pasarse y registra `limite_alcanzado` cuando lo alcanza o cuando Groq responde 429 (con `retry-after`).
+- Cliente con `httpx` (ya en la imagen). `pyyaml` 6.0.3 y `sqlite3` ya están en la imagen: **no se agregan dependencias**.
+- Funciones: **explicar** (contexto = eventos `decision` reales de ese tls: colas, espera, fase, recompensa), **comandos** (JSON → Pydantic contra la lista blanca `provocar_accidente`, `cambiar_estrategia`, `cambiar_demanda`, `pausar`, `reanudar`, `comparar`; se ejecuta con las mismas funciones de `SimRunner` que `/api/control`; `comparar` resume `outputs/eval/summary.md`), **resumen** de una corrida con sus métricas reales.
+- Resiliencia: timeout 20 s, 2 reintentos con backoff exponencial ante 429 y 5xx, fallback por reglas con las métricas. En fallback los comandos no ejecutan nada.
+
+**Panel "Trazas"** (sección nueva en `web/`)
+- Indicadores: factor de tiempo real, latencia media de paso, decisiones RL/min, latencia media de inferencia, semáforos en fallback, llamadas LLM, tokens, costo real y equivalente pago, fallos totales. Todos calculados desde `traces.db` por `/api/traces/summary`.
+- Filtros por componente (Simulación, Agentes RL, Eventos, Asistente IA, Entrenamiento); línea de eventos en vivo con hora real y simulada; clic → detalle. Clic en un semáforo del mapa → filtra sus decisiones.
+- **Armar fallo** (aplica una vez y se desarma): Agente RL sin respuesta → ese tls a tiempo fijo · Detector con datos perdidos → observación incompleta, el agente usa el último valor válido · Desconexión de TraCI → reconexión y reanudación · Timeout del LLM / 429 → reintentos y fallback · Respuesta inválida del LLM → acción rechazada.
+- Endpoints: `GET /api/traces` (filtros `component`, `tls_id`, `desde`, `hasta`, `limit`), `GET /api/traces/{trace_id}`, `GET /api/traces/summary`, `GET /api/traces/export.csv`, `POST /api/faults/arm`, `POST /api/assistant`. Eventos nuevos por el `/ws/state` existente (campo `traces` con lo nuevo desde el último mensaje).
+- **Rendimiento ≤ 5 %**: `emit` solo encola; la escritura a SQLite va en lotes en otro hilo; `sim_segundo` es agregado. Se mide con `eval/bench_tracing.py`: mismo escenario y semilla, N pasos a máxima velocidad (sin el límite de velocidad del panel), con y sin trazas, varias repeticiones; resultado en `outputs/bench/tracing.json`.
+
+**Puerto 8000, README y arranque**
+- FastAPI sirve `web/` en `/`; panel, mapa y trazas en `http://localhost:8000`. nginx (`:8080`) pasa a perfil opcional `nginx`; `make e2e` y `make demo` apuntan a 8000.
+- README: "Cómo correrlo desde cero" para Windows (PowerShell + Docker Desktop), macOS y Linux. Sin clave, el asistente funciona en modo fallback.
+- `scripts/medir_arranque.ps1` y `scripts/medir_arranque.sh`: `docker compose up -d --build`, sondean `http://localhost:8000` hasta que responde (con tiempo máximo) e imprimen los minutos.
+- Al final del README, la sección "Prueba del compañero" tal cual la diste; los dos últimos campos quedan en blanco.
+
+| Criterio de "terminado" | Test que lo demuestra |
+|---|---|
+| Formato y guardado de eventos; indicadores; costo real y equivalente | `tests/unit/test_traces.py`, `test_trace_summary.py`, `test_llm_pricing.py` |
+| Acciones del LLM: válidas, inválidas, fuera de lista blanca | `tests/unit/test_llm_actions.py` |
+| Cliente LLM: timeout, reintentos, 429/5xx, fallback, limitador | `tests/unit/test_llm_client.py` con `httpx.MockTransport` (sin red) |
+| La clave nunca aparece en DB, log ni respuestas | `tests/unit/test_traces.py` (clave falsa) |
+| Cada uno de los 6 fallos genera sus eventos, activa su respaldo y se desarma tras usarse | `tests/integration/test_tracing_run.py` (RL, detector, TraCI) y `tests/integration/test_assistant_api.py` (3 del LLM, parametrizado) |
+| 300 pasos con RL → decisiones trazadas para las 4 intersecciones; accidente con impacto a +120 s; `summary` = eventos guardados | `tests/integration/test_tracing_run.py` |
+| Trazas cuestan ≤ 5 % del factor de tiempo real | `tests/perf/test_tracing_overhead.py` (`slow`) + `outputs/bench/tracing.json` |
+| Panel: Trazas carga, filtros, clic en intersección filtra, "Agente RL sin respuesta" muestra el fallback en vivo | `make e2e` en `localhost:8000` (LLM `fake`) |
+| Una llamada real a Groq: modelo, tokens, costo y cabeceras de límite | `tests/live/test_groq_live.py` (marcador `live`, `make test-live`, excluido de `make test`, `test-all` y el hook Stop) |
+| Arranque medible | `scripts/medir_arranque.sh` corrido aquí (resultado real en la bitácora) |
+| `test-reviewer` APROBADO; `PLAN.md`, `CLAUDE.md`, `README.md`, `BITACORA.md` actualizados | revisión + diff |
+
+Archivos nuevos: `sim/tracing.py` (Tracer, cola, escritor SQLite, log JSON), `sim/faults.py`, `api/llm/{client,providers,actions,context,fallback}.py`, `config/{llm_pricing,intersections}.yaml`, `eval/bench_tracing.py`, `web/traces.js`, `scripts/medir_arranque.{ps1,sh}`, `.env.example`, tests. Cambios: `sim/runner.py` y `sim/controllers/rl_policy.py` (emitir trazas, fallback por tls, último valor válido), `rl/train.py` (callback de episodios), `api/main.py`, `web/index.html`/`app.js`, `docker-compose.yml` (`env_file: .env` opcional, montar `./web` y `./config`, nginx a perfil), `Makefile`, `pyproject.toml` (marcadores `live` y `perf`), `.gitignore`.
+
+**Estado al 30 oct (resultados reales)**
+- `make test`: 147 passed, 1 skipped (`live`) tras corregir la revisión. Incluye `tests/integration/test_tracing_run.py` con el modelo RL de este equipo (`ppo_roosevelt4_a0_s0_20261028-0402`, de humo, 2048 timesteps): decisiones de las 4 intersecciones en 300 pasos, impacto del accidente a +120 s, los 6 fallos con su respaldo y desarme, y la igualdad de la recompensa rápida con la de sumo-rl.
+- `make e2e` contra la app real (puerto 8001 de prueba, porque el 8000 de este equipo lo usa otro proyecto): 17/17 OK (`outputs/e2e/result.json`); captura en `docs/img/panel_trazas.png` (copiada de `outputs/e2e/panel_traces_fallback.png`).
+- **Costo del trazado: 8,35 %** (mediana de 7 pares; RTF 759 → 686 pasos/s a máxima velocidad, RL, `outputs/bench/tracing.json`, 31 oct 04:23). **No cumple el 5 %** y `tests/perf/test_tracing_overhead.py` (`slow`) falla. La medición es ruidosa en este equipo: en ese archivo los pares van de 5,94 % a 17,94 %, y la corrida de `tests/perf` del `test-reviewer` dio 15,6 % (falla). Había otros contenedores activos. Optimizaciones ya aplicadas (sus mediciones intermedias fueron de consola y no se guardaron): el escritor no despierta por evento, SQLite/JSONL se escriben en un proceso aparte, ids baratos, recompensa con caché y sin carriles peatonales, colas por `edge`.
+- Opciones para bajar de 5 % (a decidir): (a) recompensa y aproximaciones solo cuando la fase cambia; (b) agregar `sim_segundo` cada 5 s simulados al ir a > 100×; (c) medir en un equipo sin otras cargas.
+- Sin probar aún: la llamada real a Groq (`make test-live`, falta la clave) y `scripts/medir_arranque.*` en este equipo (puerto 8000 ocupado).
+- **Revisión `test-reviewer` (30 oct): NO APROBADO.** Corregido el mismo día:
+  - en un clon limpio faltaban las rutas de demanda: ahora `sim-api` las genera al arrancar, y los scripts de arranque esperan a `/api/strategies`. Probado en un clon nuevo en el puerto 8002: la simulación respondió en 16 s con la imagen ya construida;
+  - los fallos del LLM no se veían sin clave;
+  - `make test-live` apuntaba al servidor falso y mandaba la clave allí;
+  - los tests escribían en `outputs/` real;
+  - los tests de fallos que no requieren modelo se saltaban;
+  - se reintentaban los 4xx;
+  - en la ingesta del entrenamiento, un estado inválido rompía la lectura.
+  Sigue abierto: el costo del trazado (> 5 %).
+
 ### H2 · Corredor completo (2 nov)
 Corredor de 6–9 tls revisado en netedit; peatones en todas las intersecciones; escenarios valley/peak/event; `actuated` como 4.ª estrategia; mapa completo (pausa, velocidad, cambio a pico, lado a lado, fase en cada semáforo). Tests: red 6–9 tls, peatones presentes, 3 escenarios × 3 estrategias × 300 pasos, e2e de todos los controles.
 
@@ -150,3 +242,10 @@ En RL el agente aprende de la experiencia que genera en SUMO, pero **el entrenam
 4. **Proporción de motos** en pico: propongo 35 %. ¿Tienen un dato de Cali (p. ej. aforos de la Secretaría de Movilidad)?
 5. **Comparación lado a lado:** ¿2 mapas sincronizados (más pesado) o 1 mapa + gráficas comparativas (recomendado para la demo)?
 6. **Equipo de Jose:** ¿Windows con Docker Desktop o Linux? Afecta el acceso por LAN y los permisos de volúmenes.
+
+### Decisiones de H-TRAZAS (30 oct, al ejecutar)
+7. **Puerto:** panel servido por FastAPI en `:8000`; nginx (`:8080`) en perfil opcional `nginx`. CI, `make demo` y `make e2e` apuntan a 8000.
+8. **"Desconexión de TraCI":** simulada con `saveState` → cerrar libsumo → reabrir → `loadState` (mismo segundo). Errores reales: desde el último punto de control (cada 300 s).
+9. **Fechas:** H-TRAZAS en paralelo con lo de Milton (H2).
+10. **Prueba del compañero:** la sección queda con los datos dados; tiempo y problemas se llenan con `scripts/medir_arranque.ps1`.
+11. **Clave desde el panel** (pedido del usuario el 30 oct): `POST/DELETE /api/llm/key`, `POST /api/llm/test`; se guarda en `secrets/llm_api_key` (modo 600, fuera de git) y gana sobre la del archivo de entorno. Nunca se devuelve.

@@ -13,5 +13,8 @@ select = ["E", "F", "I", "UP", "B"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-markers = ["slow: long-running tests (training, full episodes)"]
+markers = [
+    "slow: long-running tests (training, full episodes, benchmarks)",
+    "live: real calls to the LLM provider (manual: make test-live)",
+]
 addopts = "-ra -p no:cacheprovider"

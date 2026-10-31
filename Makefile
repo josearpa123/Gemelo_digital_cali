@@ -6,7 +6,15 @@ export GID := $(shell id -g)
 RUN_SIM := docker compose run --rm --no-deps sim-api
 RUN_TRAIN := docker compose --profile train run --rm trainer
 
-.PHONY: build up down ps logs test test-all train-smoke grid demo demo-check dataset train tensorboard e2e evaluate doctor test-portability clean-clone-check
+# real LLM call with the key of the env file (manual, costs nothing on the free plan)
+test-live:
+	$(RUN_SIM) pytest -q -m live --run-live tests/live
+
+# tracing overhead on the simulation (≤ 5 %), result in outputs/bench/tracing.json
+bench-tracing:
+	$(RUN_TRAIN) python -m eval.bench_tracing
+
+.PHONY: test-live bench-tracing build up down ps logs test test-all train-smoke grid demo demo-check dataset train tensorboard e2e evaluate doctor test-portability clean-clone-check
 
 # host preflight for a new machine (tools, memory, ports, permissions, stale image)
 doctor:
@@ -24,7 +32,8 @@ build:
 	docker compose --profile train build
 
 up:
-	docker compose up -d --build sim-api web
+	docker compose up -d --build sim-api
+	@echo "panel: http://localhost:8000"
 
 down:
 	docker compose down
@@ -33,7 +42,7 @@ ps:
 	docker compose ps
 
 logs:
-	docker compose logs -f --tail=100 sim-api web
+	docker compose logs -f --tail=100 sim-api
 
 test:
 	$(RUN_SIM) pytest -m "not slow" -q
@@ -52,8 +61,8 @@ demo: up demo-check
 demo-check:
 	docker compose ps
 	curl -fsS http://localhost:8000/health && echo
-	curl -fsS http://localhost:8080/health && echo
-	curl -fsS -o /dev/null -w "web index: %{http_code}\n" http://localhost:8080/
+	curl -fsS -o /dev/null -w "web index: %{http_code}\n" http://localhost:8000/
+	curl -fsS http://localhost:8000/api/traces/summary && echo
 
 ALPHA ?= 0
 SEED ?= 0
@@ -88,4 +97,4 @@ PLAYWRIGHT_IMAGE := mcr.microsoft.com/playwright/python:v1.55.0-noble
 
 e2e:
 	docker run --rm --network host -u "$$(id -u):$$(id -g)" -e HOME=/tmp -v "$$PWD:/app" -w /app \
-		$(PLAYWRIGHT_IMAGE) sh -c "pip install -q --user playwright==1.55.0 && python tests/e2e/panel_e2e.py http://localhost:8080"
+		$(PLAYWRIGHT_IMAGE) sh -c "pip install -q --user playwright==1.55.0 && python tests/e2e/panel_e2e.py http://localhost:8000"
