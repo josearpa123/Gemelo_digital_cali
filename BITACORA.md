@@ -4,6 +4,36 @@ Registro de qué se hizo y qué sigue. La entrada más reciente va primero. El h
 
 Formato: `## <fecha> · <autor> · <rama>`, luego `HEAD`, **Hecho**, **Siguiente** y **Bloqueos**.
 
+## 2026-10-30 · Thunderbolt (con Claude Code) · feat/h-traces
+
+HEAD `e540aea`
+
+**Hecho**
+- Hito H-TRAZAS implementado (plan en `PLAN.md`):
+  - Trazas de simulación (por segundo simulado), decisiones RL por intersección, eventos con impacto a +120 s, asistente LLM y episodios de entrenamiento.
+  - Almacenamiento en `outputs/traces.db` + `outputs/traces/events.jsonl`; API `/api/traces*` y `/api/faults/arm`; eventos por `/ws/state`.
+- «Armar fallo» con 6 fallos de un solo uso y su respaldo: RL → tiempo fijo, último valor válido, reconexión con `saveState`/`loadState`, reintentos + fallback del LLM y acción rechazada.
+- Asistente de IA (`api/llm/`):
+  - Groq `openai/gpt-oss-120b` configurable por variables de entorno.
+  - Lista blanca de acciones con Pydantic, timeout de 20 s, 2 reintentos exponenciales y fallback por reglas.
+  - Costo real US$ 0 (plan free) y equivalente pago con las tarifas verificadas el 30 oct (`config/llm_pricing.yaml`).
+  - La clave se puede poner desde el panel (`secrets/`, modo 600, nunca se devuelve).
+- Panel servido por FastAPI en `:8000` (nginx `:8080` opcional), rediseñado como centro de mando: mapa nocturno, HUD, sección Trazas y asistente.
+- README: guía desde cero (Win/macOS/Linux), `scripts/medir_arranque.{sh,ps1}` y sección «Prueba del compañero» (tiempo y problemas en blanco).
+- Pruebas:
+  - `make test`: 138 passed, 1 skipped (`live`).
+  - e2e Playwright: 17/17 OK contra la app real (en `:8001`, porque el 8000 de este equipo lo usa otro proyecto); captura en `docs/img/panel_trazas.png`.
+- **Costo del trazado: 8,35 % (> 5 %, no cumple)**: RTF 759 → 686 pasos/s, mediana de 7 pares, `outputs/bench/tracing.json`. La medición fue ruidosa por otros contenedores activos. Detalle y opciones en `PLAN.md`.
+
+**Siguiente**
+- Usuario: decidir cómo bajar el costo del trazado a ≤ 5 % (opciones a/b/c en `PLAN.md`) o medir en un equipo sin carga.
+- Usuario: poner la clave de Groq (panel o archivo de entorno) y correr `make test-live` para confirmar modelo, tokens, costo y límites reales.
+- Alexandra: correr `scripts/medir_arranque.ps1` en Windows y llenar tiempo y problemas en «Prueba del compañero».
+- Claude: incorporar las observaciones del `test-reviewer` (revisión en curso al cerrar esta entrada).
+
+**Bloqueos**
+- En este equipo el puerto 8000 lo ocupa `oftalmologia-ia-backend-1`: `make up` falla hasta liberarlo.
+
 ## 2026-10-29 · Milton (con Claude Code) · feat/h1-milton-issues
 
 HEAD `ed69113`
