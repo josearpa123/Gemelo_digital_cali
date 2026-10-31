@@ -34,7 +34,7 @@ Aprendizaje por refuerzo multiagente (**MARL**): un agente por semáforo, todos 
 |---|---|
 | Agente | Un semáforo (tls) de SUMO |
 | Observación | Fase actual (one-hot), verde mínimo cumplido, tiempo en fase, densidad y cola por carril de entrada **+ cola media de cada intersección vecina** |
-| Acción | Siguiente fase verde (discreta); amarillo de 3 s automático; verde mínimo 10 s |
+| Acción | **Mantener o avanzar** el verde actual siguiendo el ciclo del propio programa del semáforo, que conserva sus amarillos y despejes (`rl/cyclic_signal.py`); verde mínimo 10 s (o el programado si es menor) y máximo 60 s. Antes el agente saltaba entre verdes arbitrarios y bloqueaba las intersecciones unidas; los modelos entrenados así siguen cargando con su lógica anterior |
 | Recompensa | `r_i = −Δespera_i − presión_i` y `r̂_i = r_i + α · media(r_vecinas)` (α = 0 independientes, α = 0,3 coordinados) |
 | Algoritmo | PPO con parámetros compartidos (Stable-Baselines3 + SuperSuit sobre el entorno PettingZoo de sumo-rl) |
 | Decisión | Cada 5 s simulados · episodios de 1 h · libsumo, sin GUI |
@@ -179,6 +179,7 @@ Desde otro equipo de la misma red: `http://<IP-del-equipo>:8000`.
 | H0 · Workspace, Docker y hooks | 27 oct | ✅ |
 | H1 · Demo (red real, pico con motos, 3 estrategias, mapa en vivo) | 29 oct | 🔄 red ✅ · dataset ✅ · panel web ✅ · max-pressure ✅ · evaluación ✅ · PPO entrenando |
 | H-TRAZAS · Trazas, asistente de IA, panel en :8000 | 31 oct – 3 nov | 🔄 implementado; pendiente revisión (ver `PLAN.md`) |
+| Agente RL cíclico (mantener/avanzar) | 31 oct | ✅ código y tests · ⏳ falta reentrenar (el modelo actual es el anterior: para mostrar el panel usar Max-pressure) |
 | H2 · Corredor completo (6–9 tls), peatones, 3 escenarios | 2 nov | ⏳ |
 | H3 · MARL independiente vs coordinado (α = 0 vs 0,3) | 9 nov | ⏳ |
 | H4 · Evaluación 5 semillas, tablas, figuras, informe | 16 nov | ⏳ |
