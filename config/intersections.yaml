@@ -1,0 +1,18 @@
+# Names of the signalised intersections of each zone, used by traces and the assistant.
+# Streets come from the OSM names of the edges controlled by each tls (roosevelt4.net.xml).
+roosevelt4:
+  corridor: Av. Roosevelt (Calle 6)
+  corridor_aliases: [roosevelt, avenida roosevelt, av roosevelt, calle 6]
+  intersections:
+    "joinedS_11518927846_11518927850_11518927858_11518927860_#2more":
+      name: Av. Roosevelt × Cra 34
+      aliases: [carrera 34, cra 34, kr 34]
+    "joinedS_11519176296_11519176298_11519176311_11519176312_#5more":
+      name: Av. Roosevelt × Cra 36
+      aliases: [carrera 36, cra 36, kr 36]
+    "joinedS_11519593547_11519593549_11519593551_2135158619_#1more":
+      name: Av. Roosevelt × Cra 36A Bis / 36C
+      aliases: [carrera 36a bis, cra 36a bis, carrera 36c, cra 36c, 36a]
+    "joinedS_11519593561_11519593563_11519593564_11519593566_#7more":
+      name: Av. Roosevelt × Cra 39
+      aliases: [carrera 39, cra 39, kr 39]

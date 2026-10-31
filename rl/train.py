@@ -10,11 +10,12 @@ from pathlib import Path
 
 import supersuit as ss
 from stable_baselines3 import PPO
-from stable_baselines3.common.callbacks import CheckpointCallback
+from stable_baselines3.common.callbacks import CallbackList, CheckpointCallback
 from stable_baselines3.common.utils import set_random_seed
 from stable_baselines3.common.vec_env import VecMonitor
 
-from rl.env import make_parallel_env
+from rl.env import DELTA_TIME, make_parallel_env
+from rl.trace_callback import TRAINING_TRACES, EpisodeTraceCallback
 from sim.demand import train_routes
 
 
@@ -37,6 +38,7 @@ def train(
     out_root: Path = Path("models"),
     tb_root: Path = Path("outputs/tb"),
     checkpoint_every: int = 100_000,
+    traces_root: Path = TRAINING_TRACES,
 ) -> Path:
     zone = net.parent.name
     run_id = f"ppo_{zone}_a{alpha:g}_s{seed}_{datetime.now():%Y%m%d-%H%M}"
@@ -62,7 +64,13 @@ def train(
         save_path=str(out_dir / "checkpoints"),
         name_prefix="ppo",
     )
-    model.learn(total_timesteps=timesteps, tb_log_name=run_id, callback=checkpoints)
+    # one JSON line per episode, shown live in the panel's "Trazas" section
+    traces = EpisodeTraceCallback(run_id, traces_root, delta_time=DELTA_TIME)
+    model.learn(
+        total_timesteps=timesteps,
+        tb_log_name=run_id,
+        callback=CallbackList([checkpoints, traces]),
+    )
     out_dir.mkdir(parents=True, exist_ok=True)
     model.save(out_dir / "model.zip")
     vec.close()
