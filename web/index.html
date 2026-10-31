@@ -3,64 +3,163 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Gemelo digital · Av. Roosevelt, Cali</title>
+  <title>Centro de mando · Gemelo digital Cali</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&display=swap">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <header>
-    <div>
-      <h1>Gemelo digital de movilidad · Cali</h1>
-      <p class="sub">Av. Roosevelt (Calle 6), Cra 34 a Cra 39 · 4 intersecciones semaforizadas · SUMO en vivo</p>
+  <div id="boot" aria-hidden="true">
+    <div class="boot-box">
+      <div class="boot-title">GEMELO DIGITAL · CALI</div>
+      <div id="boot-lines"></div>
+      <div class="boot-bar"><i></i></div>
     </div>
-    <div class="status"><span id="conn" class="dot"></span><span id="clock">t = 0 s</span></div>
+  </div>
+  <div class="scanlines" aria-hidden="true"></div>
+
+  <header>
+    <div class="brand">
+      <svg class="mark" viewBox="0 0 48 48" aria-hidden="true">
+        <polygon points="24,3 43,14 43,34 24,45 5,34 5,14" />
+        <circle cx="24" cy="24" r="7" />
+        <path d="M24 3v10M24 35v10M5 14l9 5M34 29l9 5M43 14l-9 5M14 29l-9 5" />
+      </svg>
+      <div>
+        <h1>Centro de mando de movilidad <span>· Cali</span></h1>
+        <p class="sub">Gemelo digital · Av. Roosevelt (Calle 6), Cra 34 a Cra 39 · 4 intersecciones · SUMO en vivo</p>
+      </div>
+    </div>
+    <div class="chips">
+      <span class="chip"><span id="conn" class="dot"></span>ENLACE SUMO</span>
+      <span class="chip" id="chip-strategy">—</span>
+      <span class="chip" id="chip-demand">—</span>
+      <span class="chip warn" id="chip-faults" hidden>FALLO ARMADO</span>
+    </div>
+    <div class="clocks">
+      <div><small>HORA REAL</small><span id="clock-real">--:--:--</span></div>
+      <div><small>T SIMULADO</small><span id="clock">0 s</span></div>
+    </div>
   </header>
 
   <main>
-    <section id="map" aria-label="Mapa en vivo"></section>
-
-    <aside>
-      <div class="card">
-        <h2>Estrategia</h2>
+    <aside class="left">
+      <section class="panel">
+        <h2><span>01</span>Estrategia de control</h2>
         <div id="strategies" class="seg"></div>
         <div class="row">
           <button id="restart" title="Reinicia la simulación desde t = 0 con el mismo tráfico">↺ Reiniciar con esta estrategia</button>
         </div>
-      </div>
+      </section>
 
-      <div class="card">
-        <h2>Simulación</h2>
+      <section class="panel">
+        <h2><span>02</span>Simulación</h2>
         <div class="row">
           <button id="pause">⏸ Pausar</button>
-          <label>Velocidad
-            <select id="speed"></select>
-          </label>
+          <label>Velocidad <select id="speed"></select></label>
         </div>
         <div class="row">
           <button id="accident" class="danger">⚠ Provocar accidente</button>
           <button id="demand">🌙 Pasar a hora valle</button>
         </div>
-      </div>
+      </section>
 
-      <div class="card kpis">
+      <section class="panel kpis">
         <div><span id="k-veh">0</span><small>vehículos en red</small></div>
         <div><span id="k-queue">0</span><small>detenidos en semáforos</small></div>
         <div><span id="k-wait">0 s</span><small>espera media por viaje</small></div>
         <div><span id="k-arr">0</span><small>viajes completados</small></div>
-      </div>
+      </section>
 
-      <div class="card">
-        <h2>Espera media de vehículos en red (s)</h2>
+      <section class="panel">
+        <h2><span>03</span>Espera media en red (s)</h2>
         <canvas id="chart-wait" height="150"></canvas>
-      </div>
-      <div class="card">
-        <h2>Vehículos detenidos en los semáforos</h2>
+      </section>
+      <section class="panel">
+        <h2><span>04</span>Detenidos en semáforos</h2>
         <canvas id="chart-queue" height="150"></canvas>
-      </div>
+      </section>
       <p class="legend">
         <i class="lg car"></i>carro <i class="lg moto"></i>moto
         <i class="lg sg"></i>verde <i class="lg sy"></i>amarillo <i class="lg sr"></i>rojo
+        <i class="lg hub"></i>intersección (clic = filtrar trazas)
       </p>
+    </aside>
+
+    <section id="map-wrap" aria-label="Mapa en vivo">
+      <div id="map"></div>
+      <div class="hud-corners" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+      <div class="hud-readout" aria-hidden="true"><span id="coords">3.42°N 76.54°O</span><span>ZONA: ROOSEVELT4</span></div>
+      <div class="hud-crosshair" aria-hidden="true"></div>
+    </section>
+
+    <aside class="right">
+      <section class="panel assistant">
+        <h2><span>05</span>Asistente IA
+          <button id="key-open" class="tiny" title="Configurar la clave del proveedor">⚙ Clave</button>
+        </h2>
+        <div class="llm-line"><span id="llm-provider">—</span><span id="llm-key" class="badge">sin clave</span></div>
+        <form id="key-form" hidden autocomplete="off">
+          <label for="key-input">Clave de API de Groq (se guarda solo en el servidor; nunca se vuelve a mostrar)</label>
+          <input id="key-input" type="password" placeholder="gsk_…" spellcheck="false">
+          <div class="row">
+            <button type="submit" id="key-save">Guardar</button>
+            <button type="button" id="key-test">Probar conexión</button>
+            <button type="button" id="key-clear" class="ghost">Borrar</button>
+          </div>
+          <small class="muted">Consíguela gratis en console.groq.com/keys · Sin clave, el asistente responde por reglas.</small>
+          <div id="key-msg" class="msg"></div>
+        </form>
+        <div class="seg modes" id="assistant-modes">
+          <button data-mode="comando" class="active">Comando</button>
+          <button data-mode="explicar">Explicar</button>
+          <button data-mode="resumen">Resumen</button>
+        </div>
+        <form id="assistant-form" class="row">
+          <input id="assistant-input" placeholder="Ej.: provoca un accidente en la Roosevelt" autocomplete="off">
+          <button id="assistant-send" type="submit">▶</button>
+        </form>
+        <div id="assistant-answer" class="answer" aria-live="polite"></div>
+      </section>
+
+      <section class="panel" id="traces">
+        <h2><span>06</span>Trazas
+          <a id="trace-export" class="tiny" href="/api/traces/export.csv" download>⇩ CSV</a>
+        </h2>
+        <div class="tkpis" id="trace-kpis">
+          <div><span id="tk-rtf">—</span><small>factor tiempo real</small></div>
+          <div><span id="tk-step">—</span><small>paso TraCI (ms)</small></div>
+          <div><span id="tk-dpm">—</span><small>decisiones RL / min</small></div>
+          <div><span id="tk-inf">—</span><small>inferencia (ms)</small></div>
+          <div><span id="tk-fb">—</span><small>semáforos en fallback</small></div>
+          <div><span id="tk-calls">—</span><small>llamadas LLM</small></div>
+          <div><span id="tk-tokens">—</span><small>tokens</small></div>
+          <div><span id="tk-cost">—</span><small>costo real US$</small></div>
+          <div><span id="tk-paid">—</span><small>equivalente pago US$</small></div>
+          <div><span id="tk-fail">—</span><small>fallos</small></div>
+        </div>
+
+        <div class="filters" id="trace-filters">
+          <button data-filter="all" class="active">Todos</button>
+          <button data-filter="sim">Simulación</button>
+          <button data-filter="rl">Agentes RL</button>
+          <button data-filter="event">Eventos</button>
+          <button data-filter="llm">Asistente IA</button>
+          <button data-filter="training">Entrenamiento</button>
+        </div>
+        <div id="tls-filter" class="tls-filter" hidden><span></span><button class="tiny" id="tls-clear">✕</button></div>
+
+        <div class="fault row">
+          <select id="fault-select" aria-label="Simular en la próxima ocasión"></select>
+          <button id="fault-arm" class="danger">Armar fallo</button>
+        </div>
+        <div id="fault-msg" class="msg"></div>
+
+        <ol id="trace-list" class="timeline"></ol>
+        <div id="trace-detail" class="detail" hidden></div>
+      </section>
     </aside>
   </main>
 
@@ -68,6 +167,7 @@
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="traces.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
