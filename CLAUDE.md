@@ -60,7 +60,7 @@ Un hito está terminado cuando (a) todos sus criterios de `PLAN.md` tienen un te
 - **H2 (2 nov)**: corredor de 6–9 tls revisado en netedit, peatones, 3 escenarios, mapa completo.
 - **H3 (9 nov)**: MARL α=0 vs α=0,3 entrenados y comparados; recompensa ajustada.
 - **H4 (16 nov)**: evaluación 5 semillas, tablas, figuras, verificación ≥15 %, panel final, README.
-- **H-TRAZAS (30 oct – 3 nov)**: trazas de sim/RL/eventos/LLM/entrenamiento (`sim/tracing.py`, SQLite `outputs/traces.db` + `outputs/traces/events.jsonl`), panel «Trazas» con «Armar fallo» (6 fallos, `sim/faults.py`), asistente LLM (`api/llm/`) que **no controla semáforos**, panel servido en `:8000`, costo del trazado ≤ 5 %.
+- **H-TRAZAS (30 oct – 3 nov)**: trazas de sim/RL/eventos/LLM/entrenamiento (`sim/tracing.py`, SQLite `outputs/traces.db` + `outputs/traces/events.jsonl`), panel «Trazas» con «Armar fallo» (6 fallos, `sim/faults.py`), asistente LLM (`api/llm/`) que **no controla semáforos**, panel servido en `:8000`; meta: costo del trazado ≤ 5 % (`make bench-tracing`; aún no se cumple, ver `PLAN.md`).
 
 ## Asistente de IA y trazas
 - Variables (archivo de entorno, ver `.env.example`): `LLM_PROVIDER` (`groq` · `openai_compat` · `fake`), `LLM_MODEL`, `LLM_BASE_URL`, `LLM_PLAN` (`free` → costo real US$ 0), `GROQ_API_KEY`. La clave también se puede poner desde el panel: queda en `secrets/llm_api_key` (modo 600, ignorado por git) y gana sobre la del archivo de entorno.

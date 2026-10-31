@@ -166,7 +166,7 @@ Notas honestas sobre el sistema actual:
 | Acciones del LLM: válidas, inválidas, fuera de lista blanca | `tests/unit/test_llm_actions.py` |
 | Cliente LLM: timeout, reintentos, 429/5xx, fallback, limitador | `tests/unit/test_llm_client.py` con `httpx.MockTransport` (sin red) |
 | La clave nunca aparece en DB, log ni respuestas | `tests/unit/test_traces.py` (clave falsa) |
-| Cada uno de los 6 fallos genera sus eventos, activa su respaldo y se desarma tras usarse | `tests/integration/test_faults.py` (parametrizado) |
+| Cada uno de los 6 fallos genera sus eventos, activa su respaldo y se desarma tras usarse | `tests/integration/test_tracing_run.py` (RL, detector, TraCI) y `tests/integration/test_assistant_api.py` (3 del LLM, parametrizado) |
 | 300 pasos con RL → decisiones trazadas para las 4 intersecciones; accidente con impacto a +120 s; `summary` = eventos guardados | `tests/integration/test_tracing_run.py` |
 | Trazas cuestan ≤ 5 % del factor de tiempo real | `tests/perf/test_tracing_overhead.py` (`slow`) + `outputs/bench/tracing.json` |
 | Panel: Trazas carga, filtros, clic en intersección filtra, "Agente RL sin respuesta" muestra el fallback en vivo | `make e2e` en `localhost:8000` (LLM `fake`) |
@@ -177,11 +177,20 @@ Notas honestas sobre el sistema actual:
 Archivos nuevos: `sim/tracing.py` (Tracer, cola, escritor SQLite, log JSON), `sim/faults.py`, `api/llm/{client,providers,actions,context,fallback}.py`, `config/{llm_pricing,intersections}.yaml`, `eval/bench_tracing.py`, `web/traces.js`, `scripts/medir_arranque.{ps1,sh}`, `.env.example`, tests. Cambios: `sim/runner.py` y `sim/controllers/rl_policy.py` (emitir trazas, fallback por tls, último valor válido), `rl/train.py` (callback de episodios), `api/main.py`, `web/index.html`/`app.js`, `docker-compose.yml` (`env_file: .env` opcional, montar `./web` y `./config`, nginx a perfil), `Makefile`, `pyproject.toml` (marcadores `live` y `perf`), `.gitignore`.
 
 **Estado al 30 oct (resultados reales)**
-- `make test`: 138 passed, 1 skipped (`live`). Incluye `tests/integration/test_tracing_run.py` con el modelo RL de este equipo (`ppo_roosevelt4_a0_s0_20261028-0402`, de humo, 2048 timesteps): decisiones de las 4 intersecciones en 300 pasos, impacto del accidente a +120 s, los 6 fallos con su respaldo y desarme, y la igualdad de la recompensa rápida con la de sumo-rl.
-- `make e2e` contra la app real (puerto 8001 de prueba, porque el 8000 de este equipo lo usa otro proyecto): 17/17 OK; captura en `docs/img/panel_trazas.png` (copiada de `outputs/e2e/panel_traces_fallback.png`).
-- **Costo del trazado: 8,35 %** (mediana de 7 pares; RTF 759 → 686 pasos/s a máxima velocidad, RL, `outputs/bench/tracing.json`, 31 oct 04:23). **No cumple el 5 %** y `tests/perf/test_tracing_overhead.py` (`slow`) falla. La medición es ruidosa en este equipo (pares de 5,9 % a 17,9 %; la misma corrida sin trazas varió entre 543 y 849 pasos/s con otros contenedores activos). Partes medidas dentro del hilo de simulación: recompensa ≈ 3 %, colas por aproximación ≈ 1,2 %, `sim_segundo` ≈ 1,1 %, `emit` ≈ 0,7 %. Ya aplicado: sin despertar hilos por evento (de 15 % a 9 %), escritura SQLite/JSONL en un proceso aparte, ids baratos, recompensa con caché y sin carriles peatonales, colas por `edge`. A la velocidad del panel (≤ 50×) la simulación tiene ~15× de margen y el factor de tiempo real no cambia.
+- `make test`: 147 passed, 1 skipped (`live`) tras corregir la revisión. Incluye `tests/integration/test_tracing_run.py` con el modelo RL de este equipo (`ppo_roosevelt4_a0_s0_20261028-0402`, de humo, 2048 timesteps): decisiones de las 4 intersecciones en 300 pasos, impacto del accidente a +120 s, los 6 fallos con su respaldo y desarme, y la igualdad de la recompensa rápida con la de sumo-rl.
+- `make e2e` contra la app real (puerto 8001 de prueba, porque el 8000 de este equipo lo usa otro proyecto): 17/17 OK (`outputs/e2e/result.json`); captura en `docs/img/panel_trazas.png` (copiada de `outputs/e2e/panel_traces_fallback.png`).
+- **Costo del trazado: 8,35 %** (mediana de 7 pares; RTF 759 → 686 pasos/s a máxima velocidad, RL, `outputs/bench/tracing.json`, 31 oct 04:23). **No cumple el 5 %** y `tests/perf/test_tracing_overhead.py` (`slow`) falla. La medición es ruidosa en este equipo: en ese archivo los pares van de 5,94 % a 17,94 %, y la corrida de `tests/perf` del `test-reviewer` dio 15,6 % (falla). Había otros contenedores activos. Optimizaciones ya aplicadas (sus mediciones intermedias fueron de consola y no se guardaron): el escritor no despierta por evento, SQLite/JSONL se escriben en un proceso aparte, ids baratos, recompensa con caché y sin carriles peatonales, colas por `edge`.
 - Opciones para bajar de 5 % (a decidir): (a) recompensa y aproximaciones solo cuando la fase cambia; (b) agregar `sim_segundo` cada 5 s simulados al ir a > 100×; (c) medir en un equipo sin otras cargas.
 - Sin probar aún: la llamada real a Groq (`make test-live`, falta la clave) y `scripts/medir_arranque.*` en este equipo (puerto 8000 ocupado).
+- **Revisión `test-reviewer` (30 oct): NO APROBADO.** Corregido el mismo día:
+  - en un clon limpio faltaban las rutas de demanda: ahora `sim-api` las genera al arrancar, y los scripts de arranque esperan a `/api/strategies`. Probado en un clon nuevo en el puerto 8002: la simulación respondió en 16 s con la imagen ya construida;
+  - los fallos del LLM no se veían sin clave;
+  - `make test-live` apuntaba al servidor falso y mandaba la clave allí;
+  - los tests escribían en `outputs/` real;
+  - los tests de fallos que no requieren modelo se saltaban;
+  - se reintentaban los 4xx;
+  - en la ingesta del entrenamiento, un estado inválido rompía la lectura.
+  Sigue abierto: el costo del trazado (> 5 %).
 
 ### H2 · Corredor completo (2 nov)
 Corredor de 6–9 tls revisado en netedit; peatones en todas las intersecciones; escenarios valley/peak/event; `actuated` como 4.ª estrategia; mapa completo (pausa, velocidad, cambio a pico, lado a lado, fase en cada semáforo). Tests: red 6–9 tls, peatones presentes, 3 escenarios × 3 estrategias × 300 pasos, e2e de todos los controles.

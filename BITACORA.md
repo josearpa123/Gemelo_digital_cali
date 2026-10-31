@@ -29,7 +29,18 @@ HEAD `e540aea`
 - Usuario: decidir cómo bajar el costo del trazado a ≤ 5 % (opciones a/b/c en `PLAN.md`) o medir en un equipo sin carga.
 - Usuario: poner la clave de Groq (panel o archivo de entorno) y correr `make test-live` para confirmar modelo, tokens, costo y límites reales.
 - Alexandra: correr `scripts/medir_arranque.ps1` en Windows y llenar tiempo y problemas en «Prueba del compañero».
-- Claude: incorporar las observaciones del `test-reviewer` (revisión en curso al cerrar esta entrada).
+- Claude: volver a pasar el hito por `test-reviewer` cuando se resuelva el costo del trazado.
+
+**Revisión (actualización, misma sesión, HEAD `1ed410e` + docs)**
+- `test-reviewer`: **NO APROBADO**. Ya corregido:
+  - en un clon limpio, `sim-api` genera las rutas de demanda y la simulación arranca; probado en un clon nuevo en el puerto 8002, lista en 16 s con la imagen ya construida;
+  - los fallos del LLM se ven aunque no haya clave;
+  - `make test-live` apunta a Groq y no al servidor falso;
+  - los tests ya no escriben en `outputs/`;
+  - los 4xx no se reintentan;
+  - la ingesta del entrenamiento resiste estados inválidos.
+- `make test`: 147 passed, 1 skipped. e2e 17/17 (`outputs/e2e/result.json`).
+- Sigue abierto: costo del trazado > 5 %. El reviewer midió 15,6 % con `tests/perf`; el último `make bench-tracing` dio 8,35 %.
 
 **Bloqueos**
 - En este equipo el puerto 8000 lo ocupa `oftalmologia-ia-backend-1`: `make up` falla hasta liberarlo.

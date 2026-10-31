@@ -146,7 +146,7 @@ docker compose up -d --build sim-api
 # abre http://localhost:8000
 ```
 
-La primera vez, construir la imagen tarda varios minutos. Sin clave de Groq todo funciona y el asistente responde por reglas. La clave se consigue gratis en `console.groq.com/keys` y se puede pegar en el panel (⚙ Clave). Si el puerto 8000 está ocupado por otro programa, hay que cerrarlo antes.
+La primera vez, construir la imagen tarda varios minutos, y `sim-api` genera las demandas de tráfico (con semillas fijas) si faltan. Los modelos RL entrenados no se versionan: en un clon nuevo la estrategia RL aparece como «sin modelo» hasta entrenar uno (`make train`). Sin clave de Groq todo funciona y el asistente responde por reglas. La clave se consigue gratis en `console.groq.com/keys` y se puede pegar en el panel (⚙ Clave). Si el puerto 8000 está ocupado por otro programa, hay que cerrarlo antes.
 
 Para medir el tiempo hasta ver la app (lo que pide la prueba del compañero):
 
