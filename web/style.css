@@ -227,6 +227,14 @@ label { color: var(--muted); display: flex; gap: 6px; align-items: center; }
   header { flex-wrap: wrap; }
   h1 { white-space: normal; }
 }
+.evaluation-panel select { width: 100%; margin: 6px 0; }
+.evaluation-scroll { max-width: 100%; overflow-x: auto; margin: 10px 0; }
+.evaluation-scroll table { border-collapse: collapse; font: 11px var(--mono); width: 100%; }
+.evaluation-scroll th, .evaluation-scroll td { text-align: left; padding: 7px; border-bottom: 1px solid var(--line-strong); white-space: nowrap; }
+.evaluation-scroll th { color: var(--cyan); }
+.evaluation-scroll th:first-child, .evaluation-scroll td:first-child { white-space: normal; min-width: 115px; max-width: 140px; }
+.evaluation-panel p { font-size: 12px; line-height: 1.5; }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
   #boot { display: none; }

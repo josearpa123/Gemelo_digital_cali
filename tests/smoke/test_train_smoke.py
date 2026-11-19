@@ -1,5 +1,6 @@
 """PPO trains 1000 timesteps on roosevelt4 with a short episode, saves and loads."""
 
+import json
 import multiprocessing
 from pathlib import Path
 
@@ -33,9 +34,32 @@ def test_train_1000_timesteps_saves_loadable_model(tmp_path):
         out_root=tmp_path / "models",
         tb_root=tmp_path / "tb",
         checkpoint_every=500,
+        traces_root=tmp_path / "traces",
     )
     assert (out / "model.zip").exists()
     assert (out / "config.json").exists()
     assert list((out / "checkpoints").glob("ppo_*_steps.zip"))
     model = PPO.load(str(out / "model.zip"), device="cpu")
     assert model.observation_space.shape[0] > 0
+    config = json.loads((out / "config.json").read_text())
+    assert config["status"] == "completed"
+    assert config["provenance"]["network_sha256"]
+    checkpoint = max((out / "checkpoints").glob("ppo_*_steps.zip"), key=lambda p: p.stat().st_mtime)
+    saved = PPO.load(str(checkpoint), device="cpu")
+    resumed = train(
+        NET,
+        timesteps=512,
+        alpha=0.3,
+        seed=0,
+        n_envs=1,
+        num_seconds=300,
+        out_root=tmp_path / "models",
+        tb_root=tmp_path / "tb",
+        checkpoint_every=500,
+        traces_root=tmp_path / "traces",
+        resume=checkpoint,
+    )
+    restored = PPO.load(str(resumed / "model.zip"), device="cpu")
+    assert restored.num_timesteps > model.num_timesteps
+    config = json.loads((resumed / "config.json").read_text())
+    assert config["initial_timesteps"] == saved.num_timesteps

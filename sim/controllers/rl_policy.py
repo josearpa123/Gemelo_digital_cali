@@ -6,6 +6,7 @@ from pathlib import Path
 
 import numpy as np
 
+from sim.artifacts import verify_model_network
 from sim.controllers.base import Controller, restore_programs
 from sim.tracing import NullTracer, new_trace_id
 
@@ -108,6 +109,7 @@ class RLController(Controller):
         started = time.perf_counter()
         self.net_file = net_file
         self.model_path = model_path
+        self.compatibility = verify_model_network(model_path, Path(net_file))
         self.model = PPO.load(str(model_path), device="cpu")
         self.obs_size = self.model.observation_space.shape[0]
         config = model_path.parent / "config.json"
@@ -135,6 +137,7 @@ class RLController(Controller):
                 "alpha": self.alpha,
                 "timesteps": self.config.get("timesteps"),
                 "senal": "cíclica (mantener/avanzar)" if self.cyclic else "salto libre (sumo-rl)",
+                "compatibilidad_red": self.compatibility,
                 "carga_ms": round((time.perf_counter() - started) * 1000, 1),
             },
         )

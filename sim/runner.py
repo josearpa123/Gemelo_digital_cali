@@ -561,9 +561,23 @@ class SimRunner:
             )
         for tls in self.net.getTrafficLights():
             streets = sorted({c[0].getEdge().getName() for c in tls.getConnections()} - {""})
-            for conn in tls.getConnections():
-                lane = conn[0]
+            # one light per incoming lane: its turns end at the same point and would hide
+            # each other on the map; the panel colours it with its most permissive link
+            lane_links: dict = {}
+            for lane, _, index in tls.getConnections():
+                lane_links.setdefault(lane, []).append(index)
+            nodes = {lane.getEdge().getToNode().getID() for lane in lane_links}
+            for lane, indices in lane_links.items():
                 x, y = lane.getShape()[-1]
+                edge = lane.getEdge()
+                # OSM dual carriageways make one junction out of several joined nodes and
+                # netconvert signals the median links too; the map shows only the approaches
+                if edge.getFunction() in ("crossing", "walkingarea") or lane.getID()[0] == ":":
+                    role = "pedestrian"
+                elif edge.getFromNode().getID() in nodes:
+                    role = "internal"
+                else:
+                    role = "approach"
                 lon, lat = to_lonlat(x, y)
                 features.append(
                     {
@@ -575,7 +589,8 @@ class SimRunner:
                         "properties": {
                             "kind": "signal",
                             "tls": tls.getID(),
-                            "index": conn[2],
+                            "indices": sorted(indices),
+                            "role": role,
                             "lane": lane.getID(),
                             "streets": streets,
                             "name": self.names.get(tls.getID(), " / ".join(streets)),

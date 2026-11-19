@@ -19,6 +19,7 @@ from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
+from api.evaluations import router as evaluations_router
 from api.llm.assistant import Assistant
 from api.llm.client import make_client
 from api.llm.pricing import load_pricing
@@ -502,4 +503,5 @@ async def ws_state(ws: fastapi.WebSocket):
 
 
 # the panel (web/) on the same origin and port as the API; must be mounted last
+app.include_router(evaluations_router)
 app.mount("/", StaticFiles(directory=WEB, html=True, check_dir=False), name="web")

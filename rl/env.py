@@ -10,6 +10,7 @@ from pettingzoo.utils.conversions import aec_to_parallel
 from rl.cyclic_signal import CyclicTrafficSignal
 from rl.observation import NeighborObservation
 from rl.reward import NeighborReward
+from sim.events import active, load_event
 
 DELTA_TIME = 5
 YELLOW_TIME = 3
@@ -29,7 +30,31 @@ class MultiRouteEnvironment(_BaseEnvironment):
 
     def _start_simulation(self):
         self._route = self._route_rng.choice(self.route_files)
+        self._incident = (
+            load_event(Path(self._net)) if Path(self._route).name.startswith("event_") else None
+        )
+        if Path(self._route).name.startswith("event_") and self._incident is None:
+            raise ValueError("event training requires a network .event.json")
+        self._lane_backup = None
         super()._start_simulation()
+
+    def _sumo_step(self):
+        # Same closure as SimRunner: authority-only lane at 1 m/s, then restore it.
+        if self._incident:
+            lane = self._incident["lane"]
+            if active(self._incident, self.sim_step) and self._lane_backup is None:
+                self._lane_backup = (
+                    list(self.sumo.lane.getAllowed(lane)),
+                    self.sumo.lane.getMaxSpeed(lane),
+                )
+                self.sumo.lane.setAllowed(lane, ["authority"])
+                self.sumo.lane.setMaxSpeed(lane, 1.0)
+            elif not active(self._incident, self.sim_step) and self._lane_backup is not None:
+                allowed, speed = self._lane_backup
+                self.sumo.lane.setAllowed(lane, allowed)
+                self.sumo.lane.setMaxSpeed(lane, speed)
+                self._lane_backup = None
+        super()._sumo_step()
 
 
 # sumo-rl's PettingZoo wrapper instantiates SumoEnvironment by name

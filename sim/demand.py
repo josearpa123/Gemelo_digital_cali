@@ -21,6 +21,9 @@ MOTO_SHARE = 0.35
 FLOWS = {"peak": 1300, "valley": 550, "event": 1300}
 TRAIN_SEEDS = range(100, 120)
 EVAL_SEEDS = range(0, 5)
+VALIDATION_SEEDS = range(200, 205)
+TEST_SEEDS = range(300, 305)
+SPLIT_SEEDS = {"validation": VALIDATION_SEEDS, "test": TEST_SEEDS, "legacy": EVAL_SEEDS}
 
 CORRIDOR = "Calle 6"
 CROSS_STREETS = {"Carrera 34", "Carrera 36", "Carrera 36A Bis", "Carrera 36C", "Carrera 39"}
@@ -128,13 +131,21 @@ def count_types(routes: Path) -> dict[str, int]:
     return counts
 
 
-def build_dataset(net_file: Path) -> Path:
-    """Training split (peak, seeds 100-119) and evaluation split (all scenarios, seeds 0-4)."""
+def build_dataset(net_file: Path, *, missing_only: bool = False) -> Path:
+    """Disjoint train/validation/test splits; keep historical evaluation routes available."""
     rows = []
-    jobs = [("train", "peak", s) for s in TRAIN_SEEDS]
+    jobs = [("train", sc, s) for sc in FLOWS for s in TRAIN_SEEDS]
+    jobs += [
+        (split, sc, s)
+        for split in ("validation", "test")
+        for sc in FLOWS
+        for s in SPLIT_SEEDS[split]
+    ]
     jobs += [("eval", sc, s) for sc in ("valley", "peak", "event") for s in EVAL_SEEDS]
     for split, scenario, seed in jobs:
-        routes = generate(net_file, scenario, seed)
+        routes = route_path(net_file, scenario, seed)
+        if not missing_only or not routes.exists():
+            routes = generate(net_file, scenario, seed)
         row = {"split": split, "scenario": scenario, "seed": seed, "file": routes.name}
         rows.append(row | count_types(routes))
     manifest = demand_dir(net_file) / "manifest.csv"
@@ -145,8 +156,14 @@ def build_dataset(net_file: Path) -> Path:
     return manifest
 
 
-def train_routes(net_file: Path) -> list[Path]:
-    return [route_path(net_file, "peak", s) for s in TRAIN_SEEDS]
+def train_routes(net_file: Path, scenarios: tuple[str, ...] = ("peak",)) -> list[Path]:
+    if (
+        not scenarios
+        or len(set(scenarios)) != len(scenarios)
+        or any(sc not in FLOWS for sc in scenarios)
+    ):
+        raise ValueError(f"training scenarios must be chosen from {list(FLOWS)}")
+    return [route_path(net_file, sc, s) for sc in scenarios for s in TRAIN_SEEDS]
 
 
 def main() -> None:
@@ -155,9 +172,10 @@ def main() -> None:
     parser.add_argument("--scenario", choices=sorted(FLOWS))
     parser.add_argument("--seed", type=int)
     parser.add_argument("--dataset", action="store_true", help="generate the full train/eval split")
+    parser.add_argument("--missing-only", action="store_true", help="preserve existing routes")
     args = parser.parse_args()
     if args.dataset:
-        print(build_dataset(args.net))
+        print(build_dataset(args.net, missing_only=args.missing_only))
     else:
         routes = generate(args.net, args.scenario, args.seed)
         print(routes, count_types(routes))

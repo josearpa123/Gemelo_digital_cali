@@ -4,6 +4,73 @@ Registro de qué se hizo y qué sigue. La entrada más reciente va primero. El h
 
 Formato: `## <fecha> · <autor> · <rama>`, luego `HEAD`, **Hecho**, **Siguiente** y **Bloqueos**.
 
+## 2026-11-18 · Milton (con Codex) · feat/h1-milton-issues
+
+HEAD base `fbb3938` (cambios locales anteriores conservados).
+
+**Hecho**
+- Reanudación desde checkpoints con configuración guardada desde el inicio y huellas
+  de red, rutas, tipos de vehículo, incidente, código y versiones.
+- Dataset con entrenamiento 100–119, validación 200–204 y prueba final 300–304;
+  histórico 0–4 conservado. Mezcla pico/valle/evento y cierre de carril en entrenamiento.
+- Validación automática frente a fijo y max-pressure, métricas P95/máxima/completados,
+  reportes CSV/JSON/Markdown, figuras y panel comparativo con descarga.
+- Verificación: 167 passed en suite rápida (`outputs/verification/pytest_20261118.log`),
+  humo y reanudación 1 passed (`resume_20261118.log`), Ruff sin errores y 8 comprobaciones
+  de navegador (`evaluation-browser.json`), todos bajo `outputs/verification/`.
+- Pipeline real corto: `outputs/evaluations/pipeline_check_20261118/`, 2048 pasos de
+  entrenamiento y 9 corridas de 300 s, semilla 200. Es comprobación técnica, no evidencia
+  de cumplimiento del objetivo científico.
+- Documentación: `docs/training-and-evaluation.md`, `docs/calibration.md`,
+  `docs/implementation-report-20261118.md` y plantilla vacía de aforos.
+- Corrida larga terminada con código 0: 3.000.320 pasos, 2481,9 s. Validación completa
+  (45 corridas, semillas 200–204): en pico PPO reduce espera 69,9 % vs fijo y
+  27,3 % vs max-pressure. Resultados exportados en `docs/results/validation-20261118/`.
+- Usuario autorizó subir los cambios a `feat/h1-milton-issues`.
+
+**Siguiente**
+- Entrenamiento y validación finalizados. Log: `outputs/verification/current-validation.log`.
+- Analizar esa evaluación antes de promover el modelo. Para estudiar cooperación,
+  ejecutar el protocolo multisemilla documentado; reservar prueba final hasta fijarlo.
+
+**Bloqueos / límites**
+- Sin aforos reales ni demanda peatonal generada: calibración y evaluación peatonal
+  siguen pendientes. La corrida larga original no tiene las nuevas huellas y requiere
+  reconocer su compatibilidad como no verificada al evaluarla.
+
+## 2026-10-31 · Milton (con Claude Code) · feat/h-traces-lane-signals
+
+**Hecho**
+- Semáforos realistas en `roosevelt4` (#4, parte de semáforos). En OSM, la Roosevelt y las carreras son calzadas separadas. netconvert unía 5–11 nodos por intersección y ponía luz en los tramos del separador (Cra 39: 16 internas + 12 de acceso + 14 peatonales). Además armaba programas de hasta 27 fases y 306 s (Cra 34), y los carros quedaban frenados en el separador.
+  - `--tls.uncontrolled-within` en `sim/network/build_osm.py`: sin luces en el separador.
+  - `sim/network/signals.py`: programa de 2 fases en las 4 intersecciones, con ciclo de 90 s:
+    - Roosevelt 50 s · amarillo 3 · todo rojo 2;
+    - carrera 30 s · amarillo 3 · todo rojo 2;
+    - recto con prioridad (G), giros que ceden (g), cruces peatonales en verde mientras su calle está en rojo.
+    - Los tiempos son de diseño del proyecto, no aforos.
+  - Comprobado en pico s0:
+    - 55.509 veh·s detenidos en rojo vs 9.253 en verde;
+    - 1.225 vehículos entran, 1.156 salen y 69 siguen en la red al final.
+- Panel:
+  - un punto por carril de acceso (antes uno por movimiento, encimados); las luces internas y peatonales no se dibujan;
+  - el anillo de la intersección va en el mismo canvas que vehículos y luces (antes el clic solo funcionaba porque había una luz interna en el centro).
+- Dataset regenerado: `manifest.csv` idéntico (la demanda no depende de los semáforos).
+- Evaluación con la red nueva, 5 semillas × 1 h (`outputs/eval/summary.md`, `goal_check.md`; la anterior quedó en `outputs/eval_net_v1/`). Espera media:
+  - Pico: fijo 55,6 ± 6,5 s · max-pressure 24,2 ± 2,6 s (**+56,3 %**, IC95 [+52,6; +60,0], cumple) · RL α=0 viejo 855,8 ± 135,4 s.
+  - Valle: fijo 40,0 · max-pressure 15,6 (+61,1 %).
+  - Evento: fijo 54,0 · max-pressure 25,1 (+52,7 %).
+  - 0 teletransportes con fijo y con max-pressure (antes 10,4 y 26,8 en pico).
+  - Jain en pico: fijo 0,64 y max-pressure 0,68 (antes 0,18 y 0,23).
+  - El modelo RL actual se entrenó con la red y los programas viejos: no sirve en la red nueva.
+- Pruebas: `make test` 153 passed y 1 skipped (`live`) · `train-smoke` OK · e2e 17/17.
+
+**Siguiente**
+- Milton: reentrenar con la red nueva y el agente cíclico (`make train ALPHA=0 SEED=0` y `ALPHA=0.3`) y evaluar contra max-pressure, que ahora es la base a superar.
+- Revisar en netedit los giros de la Cra 34 (17 enlaces de la carrera, 8 sin nombre en OSM) y, si hay aforos, ajustar los verdes.
+
+**Bloqueos**
+- Ninguno.
+
 ## 2026-10-31 · Thunderbolt (con Claude Code) · feat/h-traces
 
 **Hecho**

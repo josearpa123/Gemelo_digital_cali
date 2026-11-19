@@ -67,27 +67,35 @@ demo-check:
 ALPHA ?= 0
 SEED ?= 0
 STEPS ?= 3000000
-ENVS ?= 4
+ENVS ?= 2
 EPISODE ?= 3600
+TRAIN_SCENARIOS ?= peak
+RUN_STAMP := $(shell date -u +%Y%m%d_%H%M%S)
+RUN_NAME ?= train_a$(ALPHA)_s$(SEED)_$(RUN_STAMP)
+RESUME ?=
 
 dataset:
-	$(RUN_SIM) python -m sim.demand --dataset
+	$(RUN_SIM) python -m sim.demand --dataset --missing-only
 
 # long training in the background: make train ALPHA=0.3 SEED=1
 train:
-	docker compose --profile train run -d --name train_a$(ALPHA)_s$(SEED) \
-		-e GIT_COMMIT=$$(git rev-parse --short HEAD) -e PYTHONWARNINGS=ignore trainer \
+	docker compose --profile train run -d --name $(RUN_NAME) \
+		-e GIT_COMMIT=$$(git rev-parse --short HEAD) -e PYTHONWARNINGS=ignore \
+		-e OMP_NUM_THREADS=2 -e MKL_NUM_THREADS=2 trainer \
 		python -m rl.train --alpha $(ALPHA) --seed $(SEED) --timesteps $(STEPS) \
-		--n-envs $(ENVS) --episode-seconds $(EPISODE)
-	@echo "logs: docker logs -f train_a$(ALPHA)_s$(SEED)  · curvas: make tensorboard"
+		--n-envs $(ENVS) --episode-seconds $(EPISODE) --scenarios $(TRAIN_SCENARIOS) \
+		$(if $(RESUME),--resume $(RESUME))
+	@echo "logs: docker logs -f $(RUN_NAME)  · curvas: make tensorboard"
 
 # strategies x scenarios x evaluation seeds: make evaluate MODELS="models/ppo_a models/ppo_b"
 MODELS ?=
-SCENARIOS ?= peak
-SEEDS ?= 0 1 2 3 4
+SCENARIOS ?= valley peak event
+SPLIT ?= validation
+SEEDS ?=
+EVAL_ARGS ?=
 evaluate:
-	$(RUN_TRAIN) python -m eval.run_all --scenarios $(SCENARIOS) --seeds $(SEEDS) \
-		$(foreach m,$(MODELS),--models $(m))
+	$(RUN_TRAIN) python -m eval.run_all --scenarios $(SCENARIOS) --split $(SPLIT) \
+		$(if $(SEEDS),--seeds $(SEEDS)) $(foreach m,$(MODELS),--models $(m)) $(EVAL_ARGS)
 
 tensorboard:
 	docker compose --profile train up -d tensorboard

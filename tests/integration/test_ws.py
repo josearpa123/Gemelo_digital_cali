@@ -35,6 +35,15 @@ def test_network_geojson_has_roads_and_signals(client):
         "coordinates"
     ]
     assert 3.40 < lat < 3.45 and -76.56 < lon < -76.52  # Cali
+    # one light per incoming lane, carrying every link index of that lane
+    signals = [f["properties"] for f in geo["features"] if f["properties"]["kind"] == "signal"]
+    lanes = [(s["tls"], s["lane"]) for s in signals]
+    assert len(lanes) == len(set(lanes))
+    assert all(s["indices"] for s in signals)
+    # every intersection keeps at least one approach light on the map
+    roles = {s["role"] for s in signals}
+    assert roles <= {"approach", "internal", "pedestrian"}
+    assert {s["tls"] for s in signals if s["role"] == "approach"} == {s["tls"] for s in signals}
 
 
 def test_websocket_streams_vehicles_and_four_traffic_lights(client):
