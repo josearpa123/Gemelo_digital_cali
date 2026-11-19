@@ -86,14 +86,14 @@ Cada parte del sistema deja eventos con `trace_id`, hora real, tiempo simulado, 
 | Asistente IA | proveedor, modelo, tokens, latencia, costo real y equivalente pago, reintentos, errores, acción validada/ejecutada/rechazada y fallback |
 | Entrenamiento | por episodio: recompensa media, espera media, duración y timesteps (lo escribe el contenedor `trainer` y el panel lo lee) |
 
-En el panel hay indicadores: factor de tiempo real, latencia de paso, decisiones RL por minuto, inferencia, semáforos en fallback, llamadas LLM, tokens, costo real y equivalente pago, y fallos. También hay filtros por componente, clic en una intersección del mapa para ver solo sus decisiones, detalle de cada evento y exportación a CSV. **Armar fallo** aplica una sola vez y luego se desarma:
+En el panel hay indicadores: factor de tiempo real, latencia de paso, decisiones RL por minuto, inferencia, semáforos en fallback, llamadas LLM, tokens, costo real y equivalente pago, y fallos. También hay filtros por componente, clic en una intersección del mapa para ver solo sus decisiones, detalle de cada evento y exportación a CSV. Con `DEMO_FAULTS=1`, un operador puede usar **Armar fallo** para aplicar un fallo una sola vez:
 
 | Fallo | Respaldo |
 |---|---|
 | Agente RL sin respuesta | ese semáforo pasa a tiempo fijo 120 s y luego vuelve el agente |
 | Detector con datos perdidos | el agente usa el último valor válido de la observación |
 | Desconexión de TraCI | se guarda el estado, SUMO se reinicia y el escenario sigue en el mismo segundo* |
-| Timeout del LLM / Límite 429 | 2 reintentos con espera exponencial y luego respuesta por reglas |
+| Timeout del LLM / Límite 429 | hasta 2 reintentos dentro del plazo y la cuota, con respuesta por reglas si el proveedor no se recupera |
 | Respuesta inválida del LLM | la acción se rechaza; no se ejecuta nada |
 
 <sub>* El panel usa libsumo (SUMO dentro del mismo proceso), así que no hay un socket que se pueda cortar: el fallo se simula cerrando y reabriendo SUMO con `saveState`/`loadState`. Un error real de libsumo usa el mismo camino desde el último punto de control (cada 300 s simulados).</sub>
@@ -107,14 +107,16 @@ API: `GET /api/traces` (filtros `component`, `tls_id`, `type`, `desde`, `hasta`,
 El LLM **no controla semáforos**; eso lo hacen los agentes RL. Tiene tres usos:
 
 - **Explicar**, por ejemplo «¿por qué la Cra 39 cambió a verde?». Responde con las trazas reales de esa decisión: colas, espera, fase y recompensa.
-- **Comandos**, por ejemplo «provoca un accidente en la Roosevelt», «pasa a hora pico» o «compara RL contra tiempo fijo». El LLM devuelve un JSON con una acción de una lista blanca, que se valida con Pydantic antes de ejecutarse.
+- **Comandos**, por ejemplo «provoca un accidente en la Roosevelt», «pasa a hora pico» o «compara RL contra tiempo fijo». El servidor valida la propuesta del modelo. Para cambiar la simulación, el operador debe pulsar **Confirmar acción** en la misma sesión.
 - **Resumen** de la corrida, a partir de sus métricas.
 
 Si el LLM falla o no hay clave, responde por reglas con los mismos datos y la simulación sigue igual.
 
 Proveedor por defecto: **Groq**, modelo `openai/gpt-oss-120b`, en el plan gratis. El costo real es US$ 0 y el panel muestra también el equivalente pago a precio de lista: 0,15 US$ por millón de tokens de entrada y 0,60 de salida, verificado el 30 oct 2026 y guardado en `config/llm_pricing.yaml`. Se puede cambiar de proveedor con `LLM_PROVIDER`, `LLM_MODEL` y `LLM_BASE_URL` (por ejemplo, Ollama local con `openai_compat`).
 
-**La clave se puede poner desde el propio panel** (⚙ Clave en «Asistente IA»). Se guarda solo en el servidor, en `secrets/`, que está fuera de git y tiene permisos 600, y nunca se vuelve a mostrar. También se puede poner como `GROQ_API_KEY` en el archivo de entorno. Nunca aparece en trazas, logs ni respuestas de la API.
+La cuenta de administración puede configurar la clave de Groq desde el panel. Se guarda en
+`secrets/`, fuera de git y con modo 600. También puede configurarse como `GROQ_API_KEY` en
+el entorno. Para el modelo de amenazas y las pruebas, consulta [Seguridad](docs/seguridad.md).
 
 ## Arquitectura
 
@@ -186,7 +188,8 @@ powershell -ExecutionPolicy Bypass -File scripts\medir_arranque.ps1    # Windows
 | `make e2e` | prueba del panel en un navegador real (Playwright en Docker), capturas en `outputs/e2e/` |
 | `docker compose run --rm sim-api python -m sim.network.build_osm --zone roosevelt4` | regenera la red desde OSM |
 
-Desde otro equipo de la misma red: `http://<IP-del-equipo>:8000`.
+Compose publica el panel en loopback por defecto. Para dar acceso al profesor con una cuenta
+de operador, sigue la configuración de HTTPS y el recorrido de la [guía de demo](docs/demo-segura.md).
 
 ## Estado
 

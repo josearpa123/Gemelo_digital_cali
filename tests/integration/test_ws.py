@@ -12,7 +12,7 @@ pytestmark = pytest.mark.skipif(
 
 @pytest.fixture(scope="module")
 def client():
-    with TestClient(main.app) as c:
+    with TestClient(main.app, base_url="http://localhost") as c:
         c.post("/api/control", json={"action": "speed", "value": 50})
         yield c
 
@@ -48,7 +48,7 @@ def test_network_geojson_has_roads_and_signals(client):
 
 def test_websocket_streams_vehicles_and_four_traffic_lights(client):
     wait_for(client, lambda s: s["t"] > 30)
-    with client.websocket_connect("/ws/state") as ws:
+    with client.websocket_connect("ws://localhost/ws/state") as ws:
         state = ws.receive_json()
     assert len(state["tls"]) == 4
     assert all(set(t["state"]) <= set("GgyYrsuoO") for t in state["tls"])

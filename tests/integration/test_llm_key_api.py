@@ -23,7 +23,7 @@ def test_conftest_isolates_the_key_file_from_the_real_secrets_dir():
 
 
 def test_panel_key_never_leaves_the_server():
-    with TestClient(main.app) as client:
+    with TestClient(main.app, base_url="http://localhost") as client:
         bodies = []
         res = client.post("/api/llm/key", json={"api_key": PANEL_KEY})
         assert res.status_code == 200 and res.json()["key_configured"]
@@ -32,9 +32,17 @@ def test_panel_key_never_leaves_the_server():
         assert keystore.KEY_FILE.stat().st_mode & 0o777 == 0o600
         bodies.append(client.get("/api/llm/info").text)
         bodies.append(client.post("/api/llm/test").text)  # fake provider: no network
-        bodies.append(client.post("/api/assistant", json={"modo": "resumen"}).text)
+        bodies.append(
+            client.post("/api/assistant", json={"modo": "resumen", "texto": PANEL_KEY}).text
+        )
+        legacy = main.state.tracer.emit(
+            "llm",
+            "consulta_creada",
+            data={"texto": "CONSULTA_HISTORICA_PRIVADA"},
+        )
         main.state.tracer.flush()
         bodies.append(client.get("/api/traces", params={"component": "llm"}).text)
+        bodies.append(client.get(f"/api/traces/{legacy['trace_id']}").text)
         bodies.append(client.get("/api/traces/export.csv").text)
         bodies.append(client.get("/api/traces/summary").text)
         res = client.delete("/api/llm/key")
@@ -46,6 +54,7 @@ def test_panel_key_never_leaves_the_server():
         assert res.status_code == 400 and bad not in res.text
     for body in bodies:
         assert PANEL_KEY not in body
+        assert "CONSULTA_HISTORICA_PRIVADA" not in body
     db = Path(os.environ["TRACES_DB"])
     raw = b"".join(p.read_bytes() for p in db.parent.glob(db.name + "*"))
     assert PANEL_KEY.encode() not in raw

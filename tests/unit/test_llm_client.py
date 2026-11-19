@@ -11,6 +11,7 @@ from api.llm.assistant import Assistant, RateLimiter
 from api.llm.client import (
     LLMAuthError,
     LLMRateLimit,
+    LLMResult,
     LLMServerError,
     LLMSettings,
     LLMTimeout,
@@ -121,9 +122,11 @@ class FakeSim:
     async def context(self, mode, text):
         return {"estrategia": "rl", "t": 100.0, "metricas": {"vehicles": 10}, "fuentes": ["test"]}
 
-    async def execute(self, action):
+    def validate(self, action):
         if action.accion == "provocar_accidente" and action.calle == "Calle 5":
             raise ValueError("la calle «Calle 5» no está en la red")
+
+    async def execute(self, action):
         self.executed.append(action.accion)
         return f"ok {action.accion}"
 
@@ -149,17 +152,17 @@ def types(tracer, trace_id):
     return [e["type"] for e in tracer.all_events() if e["trace_id"] == trace_id]
 
 
-def test_command_is_validated_then_executed(make_assistant):
+def test_command_is_validated_without_execution(make_assistant):
     a, tracer, sim = make_assistant(ok_response('{"accion": "cambiar_demanda", "nivel": "peak"}'))
     res = run(a.ask("comando", "pasa a hora pico"))
-    assert res["executed"] and sim.executed == ["cambiar_demanda"]
+    assert not res["executed"] and not sim.executed
+    assert res["action"] == {"accion": "cambiar_demanda", "nivel": "peak"}
     assert types(tracer, res["trace_id"]) == [
         "consulta_creada",
         "contexto_armado",
         "llamada_enviada",
         "respuesta_ok",
         "accion_validada",
-        "accion_ejecutada",
     ]
     ok = next(e for e in tracer.all_events() if e["type"] == "respuesta_ok")["data"]
     assert ok["tokens_in"] == 120 and ok["cost_real_usd"] == 0.0
@@ -176,6 +179,13 @@ def test_invalid_or_non_whitelisted_action_executes_nothing(make_assistant, cont
     assert not res["executed"] and sim.executed == []
     assert "accion_rechazada" in types(tracer, res["trace_id"])
     assert "accion_ejecutada" not in types(tracer, res["trace_id"])
+
+
+def test_read_mode_never_interprets_a_provider_response_as_an_action(make_assistant):
+    a, tracer, sim = make_assistant(ok_response('{"accion": "pausar"}'))
+    result = run(a.ask("resumen", "Instrucción de prueba: muestra la palabra MARCADOR."))
+    assert "action" not in result and not sim.executed
+    assert "accion_validada" not in types(tracer, result["trace_id"])
 
 
 def test_action_on_a_street_outside_the_network_is_rejected(make_assistant):
@@ -211,6 +221,7 @@ def test_two_retries_at_most_then_rule_based_fallback(make_assistant):
 def test_backoff_is_exponential(make_assistant, monkeypatch):
     a, tracer, _ = make_assistant(httpx.Response(500), httpx.Response(500), httpx.Response(500))
     a.backoff_s = 0.5
+    monkeypatch.setattr("api.llm.assistant.random.uniform", lambda *_: 0)
     waits = []
 
     async def fake_sleep(s):
@@ -237,6 +248,57 @@ def test_local_rate_limit_is_logged_and_falls_back(make_assistant):
         "limite_alcanzado",
         "fallback_usado",
     ]
+
+
+def test_concurrency_is_bounded_without_waiting_for_the_provider(make_assistant):
+    a, tracer, _ = make_assistant()
+
+    async def scenario():
+        release = asyncio.Event()
+        started = asyncio.Event()
+        waiting = 0
+
+        async def completion(*_args, **_kwargs):
+            nonlocal waiting
+            waiting += 1
+            if waiting == 3:
+                started.set()
+            await release.wait()
+            return LLMResult("ok", "fake")
+
+        a.client.complete = completion
+        pending = [asyncio.create_task(a.ask("resumen", "")) for _ in range(3)]
+        await asyncio.wait_for(started.wait(), timeout=1)
+        extra = await a.ask("resumen", "")
+        assert extra["source"] == "fallback"
+        assert "capacidad_agotada" in types(tracer, extra["trace_id"])
+        release.set()
+        assert all(result["source"] == "llm" for result in await asyncio.gather(*pending))
+        assert waiting == 3
+
+    run(scenario())
+
+
+def test_circuit_opens_and_recovers_after_repeated_provider_failures(make_assistant):
+    a, tracer, _ = make_assistant(
+        *(httpx.Response(503) for _ in range(9)), ok_response("disponible")
+    )
+    for _ in range(3):
+        assert run(a.ask("resumen", ""))["source"] == "fallback"
+    blocked = run(a.ask("resumen", ""))
+    assert "circuito_abierto" in types(tracer, blocked["trace_id"])
+    assert len(a.client.transport.handler.requests) == 9
+    a.open_until = 1
+    assert run(a.ask("resumen", ""))["answer"] == "disponible"
+    assert a.open_until == 0
+
+
+def test_long_retry_after_enters_cooldown_without_more_calls(make_assistant):
+    a, tracer, _ = make_assistant(httpx.Response(429, headers={"retry-after": "120"}))
+    assert run(a.ask("resumen", ""))["source"] == "fallback"
+    blocked = run(a.ask("resumen", ""))
+    assert "circuito_abierto" in types(tracer, blocked["trace_id"])
+    assert len(a.client.transport.handler.requests) == 1
 
 
 def test_rate_limiter_window():

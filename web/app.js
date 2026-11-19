@@ -10,6 +10,11 @@ const DEMAND_NAMES = { peak: "HORA PICO", valley: "HORA VALLE", peak_plus: "PICO
 const MAX_POINTS = 600;
 
 const ui = (id) => document.getElementById(id);
+function textNode(value, tag = "span") {
+  const node = document.createElement(tag);
+  node.textContent = value;
+  return node;
+}
 
 // ---------- boot sequence (decorative; skipped with reduced motion) ----------
 (function boot() {
@@ -102,7 +107,7 @@ async function loadNetwork() {
       weight: f.properties.corridor ? 2 + f.properties.lanes : 1 + f.properties.lanes * 0.6,
       opacity: f.properties.corridor ? 0.55 : 0.45,
     }),
-    onEachFeature: (f, layer) => f.properties.name && layer.bindTooltip(f.properties.name, { sticky: true }),
+    onEachFeature: (f, layer) => f.properties.name && layer.bindTooltip(textNode(f.properties.name), { sticky: true }),
   }).addTo(map);
   const corridor = L.geoJSON(geo, { filter: (f) => f.properties.corridor });
   map.fitBounds((corridor.getLayers().length ? corridor : roads).getBounds(), { padding: [40, 40], maxZoom: 17 });
@@ -114,7 +119,7 @@ async function loadNetwork() {
       // median (internal) and pedestrian lights stay in the simulation but not on the map
       if (f.properties.role && f.properties.role !== "approach") continue;
       const marker = L.circleMarker([lat, lon], { renderer, radius: 4, weight: 1, color: "#02060d", fillOpacity: 1, fillColor: "#ff3b5c" })
-        .bindTooltip(`Semáforo ${f.properties.name}`)
+        .bindTooltip(textNode(`Semáforo ${f.properties.name}`))
         .addTo(signalLayer);
       marker.on("click", () => Traces.selectTls(f.properties.tls, f.properties.name));
       signalMarkers.push({ marker, tls: f.properties.tls, indices: f.properties.indices });
@@ -130,7 +135,7 @@ async function loadNetwork() {
   for (const [tls, c] of centers) {
     // same canvas as vehicles and lights: a click on a lower canvas never reaches its layers
     const marker = L.circleMarker([c.lat / c.n, c.lon / c.n], { renderer, radius: 11, weight: 2, color: "#00e5ff", fill: true, fillOpacity: 0.04, className: "tls-hub" })
-      .bindTooltip(c.name)
+      .bindTooltip(textNode(c.name))
       .addTo(hubLayer);
     marker.on("click", () => Traces.selectTls(tls, c.name));
     hubs.set(tls, { marker, name: c.name });
@@ -217,12 +222,16 @@ async function control(action, value) {
 
 async function setupControls() {
   const info = await (await fetch(`${API}/api/strategies`)).json();
+  for (const id of ["speed", "pause", "accident", "demand", "restart"]) {
+    ui(id).disabled = !info.can_operate;
+  }
   for (const s of info.strategies) {
     strategyLabels[s.id] = s.label;
     const b = document.createElement("button");
     b.dataset.id = s.id;
-    b.disabled = !s.available;
-    b.innerHTML = `${s.label}${s.note ? `<small>${s.note}</small>` : ""}`;
+    b.disabled = !info.can_operate || !s.available;
+    b.textContent = s.label;
+    if (s.note) b.append(textNode(s.note, "small"));
     b.onclick = () => control("strategy", s.id);
     ui("strategies").appendChild(b);
   }

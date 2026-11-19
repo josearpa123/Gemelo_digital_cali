@@ -4,6 +4,23 @@ Registro de qué se hizo y qué sigue. La entrada más reciente va primero. El h
 
 Formato: `## <fecha> · <autor> · <rama>`, luego `HEAD`, **Hecho**, **Siguiente** y **Bloqueos**.
 
+## 2026-11-18 · Codex · codex/security-hardening
+
+HEAD de implementación `e6c50e4`, sobre la base `14f5aeb`.
+
+**Hecho**
+- Acceso por rol, confirmación de acciones, protección de datos y límites del asistente.
+- Chromium aprobó 21 comprobaciones del panel y 8 de evaluaciones como operador.
+- La suite Docker aprobó 183 pruebas. El benchmark de trazado excedió la meta tanto
+  en `main` como en la rama de seguridad.
+
+**Siguiente**
+- Recorrido local con el usuario y preparación del origen HTTPS si la demo se comparte.
+
+**Bloqueos**
+- Sigue pendiente la meta histórica del costo de trazado de 5 %. La prueba de Groq en vivo
+  requiere una credencial habilitada para ese fin.
+
 ## 2026-11-18 · Milton (con Codex) · feat/h1-milton-issues
 
 HEAD base `fbb3938` (cambios locales anteriores conservados).
@@ -71,7 +88,20 @@ HEAD base `fbb3938` (cambios locales anteriores conservados).
 **Bloqueos**
 - Ninguno.
 
-## 2026-10-31 · Thunderbolt (con Claude Code) · feat/h-traces
+## 2026-10-31 · Jose (con Claude Code) · feat/h-traces
+
+HEAD `d8fcae8` (todo en commits; push pendiente del permiso `workflow`, ver Bloqueos)
+
+**Plan para mañana: entrenamiento (empezar aquí)**
+1. Subir la rama: `gh auth status` debe mostrar `workflow` en *Token scopes*. Si no aparece, correr `gh auth refresh -h github.com -s workflow`, esperar `✓ Authentication complete` en la terminal y luego `git push -u origin feat/h-traces`.
+2. Propuesta de Jose, todavía sin implementar: **pre-entrenar por imitación** (*behavior cloning*) antes del PPO.
+   - Recolectar (observación, acción mantener/avanzar) del tiempo fijo en pico y evento, y de max-pressure en valle, con las semillas de entrenamiento 100–119.
+   - Pre-entrenar la red de PPO de forma supervisada (`make pretrain`, nuevo).
+   - Seguir con PPO desde ese modelo.
+   - Sin dependencias nuevas.
+   - Ojo: los ciclos del tiempo fijo no son realistas (Cra 34: 306 s, issue #4), y el agente los heredaría como punto de partida.
+3. Entrenamiento largo con el semáforo cíclico: `make train ALPHA=0 SEED=0` (varias horas; guarda checkpoints cada 100k). Ver en el panel, Trazas → Entrenamiento.
+4. `make evaluate MODELS=models/<nuevo>` contra tiempo fijo y max-pressure (semillas 0–4). Promover a `models/current` solo si mejora, y reportar los números como salgan.
 
 **Hecho**
 - El caos con «Agentes RL» venía del agente, no del LLM. El modelo de este equipo es el de humo (2048 timesteps) y usa el `TrafficSignal` de sumo-rl, que salta entre verdes arbitrarios sin los despejes del programa.

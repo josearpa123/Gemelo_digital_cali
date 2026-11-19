@@ -9,6 +9,14 @@ def _mean(xs: list[float]) -> float | None:
     return round(sum(xs) / len(xs), 3) if xs else None
 
 
+def _values(events: list[dict], field: str) -> list[int | float]:
+    return [
+        value
+        for event in events
+        if type(value := event["data"].get(field)) in (int, float) and 0 <= value < 10**12
+    ]
+
+
 def summarize(
     sim_seconds: list[dict],
     decisions: list[dict],
@@ -18,11 +26,11 @@ def summarize(
     fallback_tls: list[str] | None = None,
 ) -> dict:
     """`sim_seconds`: newest `sim_segundo` events · `decisions`: newest RL `decision` events ·
-    `llm_events`: every LLM event · `counts`: (component, type, status, n) over all events."""
+    `llm_events`: recent LLM events · `counts`: (component, type, status, n) over all events."""
     recent_decisions = [d for d in decisions if now - d["ts"] <= 60]
     llm_ok = [e for e in llm_events if e["type"] == "respuesta_ok"]
-    tokens_in = sum(e["data"].get("tokens_in", 0) for e in llm_ok)
-    tokens_out = sum(e["data"].get("tokens_out", 0) for e in llm_ok)
+    tokens_in = sum(_values(llm_ok, "tokens_in"))
+    tokens_out = sum(_values(llm_ok, "tokens_out"))
     by_component = Counter()
     by_type = Counter()
     failures = 0
@@ -33,15 +41,13 @@ def summarize(
             failures += n
     return {
         "sim": {
-            "real_time_factor": _mean(
-                [e["data"]["rtf"] for e in sim_seconds if e["data"].get("rtf")]
-            ),
-            "step_ms": _mean([e["data"]["step_ms"] for e in sim_seconds]),
+            "real_time_factor": _mean([rtf for rtf in _values(sim_seconds, "rtf") if rtf]),
+            "step_ms": _mean(_values(sim_seconds, "step_ms")),
             "window": len(sim_seconds),
         },
         "rl": {
             "decisions_per_min": len(recent_decisions),
-            "inference_ms": _mean([d["data"]["inference_ms"] for d in decisions]),
+            "inference_ms": _mean(_values(decisions, "inference_ms")),
             "fallback_tls": sorted(fallback_tls or []),
         },
         "llm": {
@@ -49,9 +55,9 @@ def summarize(
             "tokens_in": tokens_in,
             "tokens_out": tokens_out,
             "tokens": tokens_in + tokens_out,
-            "cost_real_usd": round(sum(e["data"].get("cost_real_usd", 0.0) for e in llm_ok), 6),
-            "cost_paid_usd": round(sum(e["data"].get("cost_paid_usd", 0.0) for e in llm_ok), 6),
-            "latency_s": _mean([e["data"]["latency_s"] for e in llm_ok]),
+            "cost_real_usd": round(sum(_values(llm_ok, "cost_real_usd")), 6),
+            "cost_paid_usd": round(sum(_values(llm_ok, "cost_paid_usd")), 6),
+            "latency_s": _mean(_values(llm_ok, "latency_s")),
         },
         "failures": failures,
         "total": sum(by_component.values()),

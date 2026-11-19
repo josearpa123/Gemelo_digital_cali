@@ -12,7 +12,10 @@ def explain(ctx: dict) -> str:
             "No identifiqué esa intersección en la red. "
             f"Las intersecciones del gemelo son: {known}. {NOTE}"
         )
-    if not decisions:
+    if (
+        not decisions
+        or not {"fase_anterior", "fase_elegida", "cambia"} <= decisions[0]["data"].keys()
+    ):
         now = ctx.get("estado_actual") or {}
         return (
             f"No hay decisiones RL registradas para {name}: la estrategia activa es "
@@ -26,9 +29,9 @@ def explain(ctx: dict) -> str:
         else f"mantuvo la fase {data['fase_elegida']}"
     )
     return (
-        f"En t = {d['sim_t']:.0f} s el agente de {name} {change}: {data['motivo']}. "
-        f"Recompensa {data['recompensa']}, inferencia {data['inference_ms']} ms, "
-        f"modelo {data['modelo']}. {NOTE}"
+        f"En t = {d['sim_t']:.0f} s el agente de {name} {change}. "
+        f"Recompensa {data.get('recompensa', 'n/d')}, "
+        f"inferencia {data.get('inference_ms', 'n/d')} ms. {NOTE}"
     )
 
 

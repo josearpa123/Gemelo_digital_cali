@@ -10,7 +10,7 @@ Strategy = Literal["fixed", "maxpressure", "rl"]
 
 
 class _Action(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", strict=True)
 
 
 class ProvocarAccidente(_Action):
@@ -69,18 +69,15 @@ def parse_action(text: str):
     try:
         raw = json.loads(text)
     except (json.JSONDecodeError, TypeError) as exc:
-        raise InvalidAction(f"JSON inválido: {exc}", "respuesta_invalida") from exc
+        raise InvalidAction("JSON inválido", "respuesta_invalida") from exc
     if not isinstance(raw, dict):
         raise InvalidAction("se esperaba un objeto JSON", "respuesta_invalida")
     if raw.get("accion") not in ACTIONS:
-        raise InvalidAction(
-            f"acción fuera de la lista blanca: {raw.get('accion')!r}", "fuera_de_lista"
-        )
+        raise InvalidAction("acción fuera de la lista permitida", "fuera_de_lista")
     try:
         return _adapter.validate_python(raw)
     except ValidationError as exc:
-        errors = "; ".join(f"{'.'.join(map(str, e['loc'][1:]))}: {e['msg']}" for e in exc.errors())
-        raise InvalidAction(f"parámetros inválidos: {errors}", "parametros") from exc
+        raise InvalidAction("parámetros inválidos", "parametros") from exc
 
 
 SCHEMA_HINT = """Responde SOLO con un objeto JSON, sin texto adicional, con una de estas acciones:

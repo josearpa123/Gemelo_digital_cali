@@ -16,7 +16,12 @@ const Traces = (() => {
   const fmtTime = (ts) => new Date(ts * 1000).toLocaleTimeString("es-CO", { hour12: false });
   const fmtSim = (t) => (t === null || t === undefined ? "—" : `T+${Math.round(t)}s`);
   const num = (x, d = 1) => (x === null || x === undefined ? "—" : Number(x).toFixed(d));
-  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+  function node(tag, text, className = "") {
+    const element = document.createElement(tag);
+    element.textContent = text;
+    element.className = className;
+    return element;
+  }
 
   async function api(path, opts = {}) {
     const res = await fetch(path, { headers: { "Content-Type": "application/json" }, ...opts });
@@ -54,8 +59,9 @@ const Traces = (() => {
       case "llamada_enviada": return `llamada a ${d.proveedor} · intento ${d.intento}${d.fallo_simulado ? ` · simulado: ${d.fallo_simulado}` : ""}`;
       case "consulta_creada": return `consulta (${d.modo}): ${d.texto || ""}`;
       case "reintento": return `reintento ${d.intento} en ${d.espera_s} s`;
-      case "accion_validada": return `acción validada: ${d.accion?.accion}`;
-      case "accion_ejecutada": return `acción ejecutada: ${d.resultado}`;
+      case "accion_validada": return `acción validada: ${d.accion?.accion || d.accion}`;
+      case "accion_ejecutada": return `acción ejecutada: ${d.resultado || d.accion}`;
+      case "confirmacion_rechazada": return `confirmación rechazada: ${d.motivo}`;
       case "accion_rechazada": return `acción rechazada: ${d.motivo}`;
       case "fallback_usado": return `fallback sin IA · ${d.motivo}`;
       case "episodio": return `episodio ${d.episodio}: recompensa ${d.recompensa_media} · espera ${d.espera_media_s ?? "—"} s · ${d.timesteps} timesteps`;
@@ -79,8 +85,11 @@ const Traces = (() => {
     li.dataset.seq = e.seq;
     li.dataset.component = e.component;
     li.dataset.type = e.type;
-    li.innerHTML = `<span class="n">#${e.seq}</span><span class="t">${fmtTime(e.ts)}</span><span class="t">${fmtSim(e.sim_t)}</span>`
-      + `<span class="what"><span class="c ${e.component}">${LABELS[e.component]}</span>${esc(describe(e))}</span>`;
+    const component = Object.hasOwn(LABELS, e.component) ? e.component : "";
+    const what = node("span", "", "what");
+    what.append(node("span", LABELS[component] || "—", `c ${component}`), describe(e));
+    li.append(node("span", `#${e.seq}`, "n"), node("span", fmtTime(e.ts), "t"),
+      node("span", fmtSim(e.sim_t), "t"), what);
     li.title = describe(e);
     li.onclick = () => showDetail(e.seq);
     return li;
@@ -118,13 +127,21 @@ const Traces = (() => {
     document.querySelectorAll("#trace-list li").forEach((li) => li.classList.toggle("sel", Number(li.dataset.seq) === seq));
     const box = $("trace-detail");
     box.hidden = false;
-    const head = `<h3>#${e.seq} · ${esc(e.component)} · ${esc(e.type)} · ${esc(e.status)}</h3>`
-      + `hora real ${new Date(e.ts * 1000).toLocaleString("es-CO", { hour12: false })} · simulado ${fmtSim(e.sim_t)}\n`
-      + `trace_id ${esc(e.trace_id)}${e.tls_id ? `\nintersección ${esc(names[e.tls_id] || e.tls_id)}` : ""}\n\n`;
-    box.innerHTML = head + esc(JSON.stringify(e.data, null, 2)) + `\n\n<button class="tiny" id="trace-full">Ver traza completa</button>`;
-    $("trace-full").onclick = async () => {
-      const t = await api(`/api/traces/${encodeURIComponent(e.trace_id)}`);
-      box.innerHTML = head + t.events.map((x) => `#${x.seq} ${fmtTime(x.ts)} ${fmtSim(x.sim_t)} ${x.type} [${x.status}]\n  ${esc(describe(x))}`).join("\n");
+    const title = node("h3", `#${e.seq} · ${e.component} · ${e.type} · ${e.status}`);
+    const head = `hora real ${new Date(e.ts * 1000).toLocaleString("es-CO", { hour12: false })} · simulado ${fmtSim(e.sim_t)}\n`
+      + `trace_id ${e.trace_id}${e.tls_id ? `\nintersección ${names[e.tls_id] || e.tls_id}` : ""}\n\n`;
+    const button = node("button", "Ver traza completa", "tiny");
+    button.id = "trace-full";
+    box.replaceChildren(title, head + JSON.stringify(e.data, null, 2) + "\n\n", button);
+    button.onclick = async () => {
+      try {
+        const t = await api(`/api/traces/${encodeURIComponent(e.trace_id)}`);
+        if (selected !== seq) return;
+        const lines = t.events.map((x) => `#${x.seq} ${fmtTime(x.ts)} ${fmtSim(x.sim_t)} ${x.type} [${x.status}]\n  ${describe(x)}`);
+        box.replaceChildren(title, head + lines.join("\n"));
+      } catch (err) {
+        if (selected === seq) box.append(`\n${err.message}`);
+      }
     };
   }
 
@@ -183,8 +200,11 @@ const Traces = (() => {
   async function setupFaults() {
     const info = await api("/api/faults");
     const sel = $("fault-select");
-    sel.innerHTML = `<option value="" disabled selected>Simular en la próxima ocasión…</option>`
-      + info.available.map((f) => `<option value="${f.id}">${esc(f.label)}</option>`).join("");
+    const placeholder = new Option("Simular en la próxima ocasión…", "", true, true);
+    placeholder.disabled = true;
+    sel.replaceChildren(placeholder, ...info.available.map((f) => new Option(f.label, f.id)));
+    sel.disabled = !info.available.length;
+    $("fault-arm").disabled = !info.available.length;
     $("fault-arm").onclick = async () => {
       if (!sel.value) return;
       const rlFault = sel.value === "rl_no_response" || sel.value === "detector_loss";
@@ -205,6 +225,7 @@ const Traces = (() => {
   // ---------- assistant and key ----------
   function showLlm(info) {
     $("llm-provider").textContent = `${info.provider} · ${info.model} · plan ${info.plan}`;
+    if ("can_manage_key" in info) $("key-open").hidden = !info.can_manage_key;
     const badge = $("llm-key");
     if (!info.key_required) { badge.textContent = "sin clave necesaria"; badge.className = "badge ok"; }
     else if (info.key_configured) { badge.textContent = `clave: ${info.key_source === "panel" ? "panel" : ".env"}`; badge.className = "badge ok"; }
@@ -212,7 +233,8 @@ const Traces = (() => {
   }
 
   async function setupAssistant() {
-    showLlm(await api("/api/llm/info"));
+    const info = await api("/api/llm/info");
+    showLlm(info);
     $("key-open").onclick = () => { $("key-form").hidden = !$("key-form").hidden; $("key-input").focus(); };
     $("key-form").onsubmit = async (ev) => {
       ev.preventDefault();
@@ -245,15 +267,46 @@ const Traces = (() => {
         $("assistant-input").placeholder = placeholders[mode];
       };
     });
+    if (!info.can_operate) {
+      document.querySelector("#assistant-modes [data-mode='comando']").disabled = true;
+      document.querySelector("#assistant-modes [data-mode='explicar']").click();
+    }
+    let lastRequest = 0;
     $("assistant-form").onsubmit = async (ev) => {
       ev.preventDefault();
       const out = $("assistant-answer");
+      const request = ++lastRequest;
       out.textContent = "procesando…";
       try {
         const res = await api("/api/assistant", { method: "POST", body: JSON.stringify({ modo: mode, texto: $("assistant-input").value }) });
+        if (request !== lastRequest) return;
         const source = res.source === "llm" ? "IA" : "reglas (sin IA)";
-        out.innerHTML = `${esc(res.answer)}<span class="src">fuente: ${source} · traza ${res.trace_id}${res.executed ? " · acción ejecutada" : ""}</span>`;
-      } catch (err) { out.textContent = `Error: ${err.message}`; }
+        out.replaceChildren(res.answer, node("span", `fuente: ${source} · traza ${res.trace_id}`, "src"));
+        if (res.confirmation) {
+          const labels = {
+            provocar_accidente: (a) => `Simular accidente en ${a.calle || "el corredor activo"} durante ${a.duracion_s} s simulados`,
+            cambiar_estrategia: (a) => `Cambiar estrategia a ${a.estrategia}`,
+            cambiar_demanda: (a) => `Cambiar demanda a ${a.nivel}`,
+            pausar: () => "Pausar la simulación",
+            reanudar: () => "Reanudar la simulación",
+          };
+          const button = node("button", "Confirmar acción", "tiny");
+          button.type = "button";
+          out.append(node("p", labels[res.action.accion](res.action)), button);
+          button.onclick = async () => {
+            button.disabled = true;
+            try {
+              const result = await api("/api/assistant/confirm", {
+                method: "POST", body: JSON.stringify({ token: res.confirmation }),
+              });
+              if (request === lastRequest) out.replaceChildren(result.answer,
+                node("span", `traza ${result.trace_id} · acción ejecutada`, "src"));
+            } catch (err) {
+              if (request === lastRequest) out.append(node("p", err.message));
+            }
+          };
+        }
+      } catch (err) { if (request === lastRequest) out.textContent = `Error: ${err.message}`; }
     };
   }
 

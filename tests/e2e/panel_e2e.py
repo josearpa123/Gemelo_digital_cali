@@ -5,6 +5,7 @@ Loads the page, checks that vehicles move on the map, exercises the controls and
 live) and stores screenshots in outputs/e2e/."""
 
 import json
+import os
 import sys
 import time
 from pathlib import Path
@@ -19,7 +20,7 @@ def api_state(page) -> dict:
     return json.loads(page.evaluate("fetch('/api/state').then(r => r.text())"))
 
 
-ANY_ROW = "[...document.querySelectorAll('#trace-list li')].some(li => li.dataset.type"
+ANY_ROW = "() => [...document.querySelectorAll('#trace-list li')].some(li => li.dataset.type"
 
 
 def rows(page, selector="#trace-list li") -> list[dict]:
@@ -33,7 +34,7 @@ def traces_checks(page, checks) -> None:
     """Trazas: section, indicators, filters, intersection filter from the map, armed fault."""
     page.wait_for_selector("#traces #trace-list li")
     checks.append(("sección Trazas con eventos", len(rows(page)) > 0))
-    page.wait_for_function("document.querySelector('#tk-rtf').textContent.includes('×')")
+    page.wait_for_function("() => document.querySelector('#tk-rtf').textContent.includes('×')")
     checks.append(("indicador de factor de tiempo real", "×" in page.inner_text("#tk-rtf")))
 
     page.click("#trace-filters button[data-filter='sim']")
@@ -64,6 +65,11 @@ def traces_checks(page, checks) -> None:
         )
     )
 
+    if not page.locator("#fault-arm").is_enabled():
+        page.click("#tls-clear")
+        page.click("#trace-filters button[data-filter='all']")
+        page.locator("#strategies button[data-id='fixed']").click()
+        return
     page.select_option("#fault-select", "rl_no_response")
     page.click("#fault-arm")
     page.wait_for_function(
@@ -75,7 +81,7 @@ def traces_checks(page, checks) -> None:
         ("fallo «Agente RL sin respuesta» → fallback en vivo", "TIEMPO FIJO" in fallback[0]["txt"])
     )
     page.wait_for_function(
-        "Number(document.querySelector('#tk-fb').textContent) >= 1", timeout=10000
+        "() => Number(document.querySelector('#tk-fb').textContent) >= 1", timeout=10000
     )
     checks.append(("indicador semáforos en fallback", int(page.inner_text("#tk-fb")) >= 1))
     page.locator("#trace-list li[data-type='fallback_control']").first.click()
@@ -89,10 +95,11 @@ def traces_checks(page, checks) -> None:
     calls = int(page.inner_text("#tk-calls") or 0) if page.inner_text("#tk-calls").isdigit() else 0
     page.click("#assistant-send")
     page.wait_for_function(
-        "document.querySelector('#assistant-answer').textContent.includes('fuente')", timeout=30000
+        "() => document.querySelector('#assistant-answer').textContent.includes('fuente')",
+        timeout=30000,
     )
     page.wait_for_function(
-        f"Number(document.querySelector('#tk-calls').textContent) > {calls}", timeout=10000
+        f"() => Number(document.querySelector('#tk-calls').textContent) > {calls}", timeout=10000
     )
     checks.append(("asistente responde y suben las llamadas LLM", True))
     page.locator("#strategies button[data-id='fixed']").click()
@@ -103,13 +110,18 @@ def main() -> int:
     checks = []
     with sync_playwright() as p:
         browser = p.chromium.launch()
-        page = browser.new_page(viewport={"width": 1600, "height": 950})
+        credentials = None
+        if password := os.environ.get("DEMO_E2E_PASSWORD"):
+            credentials = {"username": "operator", "password": password}
+        page = browser.new_page(
+            viewport={"width": 1600, "height": 950}, http_credentials=credentials
+        )
         errors = []
         page.on("pageerror", lambda e: errors.append(str(e)))
         page.goto(URL, wait_until="networkidle")
         page.wait_for_selector("#strategies button")
         page.select_option("#speed", "20")
-        page.wait_for_function("document.querySelector('#conn').classList.contains('on')")
+        page.wait_for_selector("#conn.on")
         time.sleep(4)
         first = api_state(page)["snapshot"]
         time.sleep(3)
@@ -129,7 +141,7 @@ def main() -> int:
         page.screenshot(path=str(OUT / "panel_fixed.png"))
 
         page.click("#accident")
-        page.wait_for_function("document.querySelector('#accident').classList.contains('active')")
+        page.wait_for_selector("#accident.active")
         checks.append(("accidente activo", bool(api_state(page)["snapshot"]["accident_lane"])))
         time.sleep(4)
         page.screenshot(path=str(OUT / "panel_accident.png"))
@@ -158,6 +170,51 @@ def main() -> int:
         checks.append(("pausa detiene el tiempo", api_state(page)["snapshot"]["t"] == t1))
         page.click("#pause")
         traces_checks(page, checks)
+        if credentials:
+            checks.append(("operador sin acceso a la clave", page.locator("#key-open").is_hidden()))
+        if os.environ.get("DEMO_E2E_FAKE") == "1":
+            before = api_state(page)["snapshot"]["demand"]
+            desired = "peak" if before == "valley" else "valley"
+            page.click("#assistant-modes button[data-mode='comando']")
+            page.fill(
+                "#assistant-input", "pasa a hora pico" if desired == "peak" else "pasa a hora valle"
+            )
+            page.click("#assistant-send")
+            confirm = page.get_by_role("button", name="Confirmar acción")
+            confirm.wait_for()
+            checks.append(
+                (
+                    "la propuesta no cambia la demanda",
+                    api_state(page)["snapshot"]["demand"] == before,
+                )
+            )
+            confirm.click()
+            page.wait_for_function(
+                "() => document.querySelector('#assistant-answer').textContent"
+                ".includes('acción ejecutada')"
+            )
+            checks.append(
+                (
+                    "la confirmación cambia la demanda",
+                    api_state(page)["snapshot"]["demand"] == desired,
+                )
+            )
+            if page.locator("#fault-arm").is_enabled():
+                page.select_option("#fault-select", "llm_timeout")
+                page.click("#fault-arm")
+                page.wait_for_function(
+                    "() => document.querySelector('#fault-msg').textContent.includes('ARMADO')"
+                )
+                before = api_state(page)["snapshot"]["t"]
+                page.click("#assistant-modes button[data-mode='resumen']")
+                page.click("#assistant-send")
+                page.wait_for_function(
+                    "() => document.querySelector('#assistant-answer').textContent"
+                    ".includes('sin IA')"
+                )
+                checks.append(
+                    ("fallback con simulación activa", api_state(page)["snapshot"]["t"] > before)
+                )
         page.select_option("#speed", "5")
         checks.append(("sin errores de JavaScript", not errors))
         browser.close()
