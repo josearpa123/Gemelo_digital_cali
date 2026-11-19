@@ -2,6 +2,7 @@
 
 import json
 import time
+import zipfile
 from pathlib import Path
 
 import numpy as np
@@ -23,6 +24,30 @@ def find_model(models_dir: Path = MODELS_DIR) -> Path | None:
         return current
     candidates = sorted(models_dir.glob("*/model.zip"), key=lambda p: p.stat().st_mtime)
     return candidates[-1] if candidates else None
+
+
+def model_metadata(model_path: Path) -> dict:
+    """Identify the real selected artifact, including actual steps saved by SB3."""
+    resolved = model_path.resolve()
+    config_path = resolved.parent / "config.json"
+    try:
+        config = json.loads(config_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        config = {}
+    steps = config.get("actual_timesteps", config.get("timesteps"))
+    try:
+        with zipfile.ZipFile(resolved) as archive:
+            if archive.getinfo("data").file_size <= 2_000_000:
+                saved = json.loads(archive.read("data"))
+                steps = saved.get("num_timesteps", steps)
+    except (OSError, ValueError, KeyError, zipfile.BadZipFile):
+        pass
+    return {
+        "run_id": resolved.parent.name,
+        "timesteps": steps,
+        "alpha": config.get("alpha"),
+        "signal": config.get("signal", "legacy"),
+    }
 
 
 class _EnvShim:

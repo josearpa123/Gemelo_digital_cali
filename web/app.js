@@ -196,6 +196,10 @@ function render(s) {
 }
 
 function syncControls() {
+  if (!ui("rl-model").hidden) {
+    const modelStatus = current.strategy === "rl" ? "Modelo en uso" : "Modelo listo para agentes RL";
+    if (ui("rl-model-status").textContent !== modelStatus) ui("rl-model-status").textContent = modelStatus;
+  }
   document.querySelectorAll("#strategies button").forEach((b) => b.classList.toggle("active", b.dataset.id === current.strategy));
   ui("pause").textContent = current.paused ? "▶ Reanudar" : "⏸ Pausar";
   ui("pause").classList.toggle("active", current.paused);
@@ -222,6 +226,14 @@ async function control(action, value) {
 
 async function setupControls() {
   const info = await (await fetch(`${API}/api/strategies`)).json();
+  const selectedModel = info.strategies.find((strategy) => strategy.id === "rl")?.model;
+  if (selectedModel) {
+    ui("rl-model").hidden = false;
+    ui("rl-model-name").textContent = selectedModel.run_id;
+    const steps = Number.isFinite(selectedModel.timesteps) ? `${selectedModel.timesteps.toLocaleString("es-CO")} pasos` : "pasos no registrados";
+    const signal = selectedModel.signal === "cyclic" ? "señal cíclica" : "señal anterior";
+    ui("rl-model-details").textContent = `PPO · ${steps} · α=${selectedModel.alpha ?? "—"} · ${signal}`;
+  }
   for (const id of ["speed", "pause", "accident", "demand", "restart"]) {
     ui(id).disabled = !info.can_operate;
   }

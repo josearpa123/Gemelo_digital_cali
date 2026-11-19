@@ -12,7 +12,7 @@ import sumolib
 
 from sim.controllers import FixedTimeController, MaxPressureController
 from sim.controllers.base import Controller
-from sim.controllers.rl_policy import RLController, find_model
+from sim.controllers.rl_policy import RLController, find_model, model_metadata
 from sim.intersections import load_zone, tls_names
 from sim.tracing import NullTracer, new_trace_id
 
@@ -80,7 +80,8 @@ class SimRunner:
         for key in ("fixed", "maxpressure", "rl"):
             item = {"id": key, "label": labels[key], "available": key in self.strategies}
             if key == "rl":
-                item["note"] = self.model_path.parent.name if self.model_path else "sin modelo"
+                item["model"] = model_metadata(self.model_path) if self.model_path else None
+                item["note"] = item["model"]["run_id"] if item["model"] else "sin modelo"
             out.append(item)
         return out
 

@@ -4,6 +4,30 @@ Registro de qué se hizo y qué sigue. La entrada más reciente va primero. El h
 
 Formato: `## <fecha> · <autor> · <rama>`, luego `HEAD`, **Hecho**, **Siguiente** y **Bloqueos**.
 
+## 2026-11-19 · Milton (con Codex) · feat/h1-milton-issues
+
+HEAD base `1b3b245`.
+
+**Hecho**
+- `models/current` apunta al PPO cíclico de 3M (`ppo_roosevelt4_a0_s0_20261119-0131`);
+  el artefacto anterior se conserva. Modelo nuevo cargado y estrategia RL activada.
+- El panel muestra identificador real, 3.000.320 pasos guardados, alpha y señal;
+  distingue modelo en uso de modelo preparado.
+- Acceso directo “Gemelo digital Cali” instalado en el escritorio de Windows:
+  arranca WSL/Docker, espera la conexión desde Windows, abre navegador y mantiene
+  WSL activo siguiendo los logs en una ventana que debe permanecer abierta.
+- Documentación en `docs/local-panel.md`. Verificación: 184 passed en suite rápida,
+  1 skipped (LLM real), 2 deselected (`outputs/verification/panel-20261119-tests.log`);
+  Chromium aprobó selección y versión real sin errores JavaScript
+  (`outputs/verification/model-selected-20261119.json`). Lanzador y acceso real probados.
+
+**Siguiente**
+- Usar el acceso directo para iniciar el panel después de reiniciar Windows.
+
+**Bloqueos / límites**
+- El modelo activado es la corrida anterior al registro de huellas de entrenamiento;
+  su evaluación y limitaciones siguen en `docs/results/validation-20261118/`.
+
 ## 2026-11-18 · Codex · codex/security-hardening
 
 HEAD de implementación `e6c50e4`, sobre la base `14f5aeb`.

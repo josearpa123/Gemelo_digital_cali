@@ -1,5 +1,7 @@
 # 🚦 Gemelo digital de movilidad urbana · Cali
 
+**Panel local:** [modelo seleccionado y acceso directo de Windows](docs/local-panel.md).
+
 **Entrenamiento y evaluación (18 nov):** [guía con comandos para WSL](docs/training-and-evaluation.md),
 [protocolo de calibración con aforos reales](docs/calibration.md).
 Incluye reanudación, huellas de red/datos/código, validación automática y resultados
