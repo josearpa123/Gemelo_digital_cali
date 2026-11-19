@@ -4,6 +4,33 @@ Registro de qué se hizo y qué sigue. La entrada más reciente va primero. El h
 
 Formato: `## <fecha> · <autor> · <rama>`, luego `HEAD`, **Hecho**, **Siguiente** y **Bloqueos**.
 
+## 2026-11-19 · Milton (con Codex) · protocolo de cooperación multisemilla
+
+HEAD base `57f87e4` · rama `feat/h1-milton-issues`.
+
+**Hecho**
+- Subidos el modelo visible y el acceso directo (commit `57f87e4`).
+- Protocolo de seis PPO (alpha 0/0,3 × semillas 0/1/2), 3M por corrida, mezcla
+  pico/valle/evento y dos entornos. Estado persistente y reutilización de modelos
+  completados en caso de reinicio.
+- Lanzador con código y datos congelados, revisión Git e imagen registradas,
+  sin secretos. Validación 200–204 antes de fijar modelo por regla predeclarada;
+  solo ese candidato puede consumir la prueba final 300–304.
+- Sin candidato elegible, no se ejecuta la prueba final. El modelo activo del
+  panel no se reemplaza automáticamente.
+- Verificación: Ruff aprobado; suite rápida 190 passed, 1 skipped (LLM real),
+  2 deselected (`outputs/verification/cooperation-protocol-20261119-tests.log`).
+- Documentación en `docs/cooperation-experiment.md`.
+
+**Siguiente**
+- Lanzar `bash scripts/run_experiment.sh cooperation_20261119`; progreso en
+  `outputs/evaluations/cooperation_20261119/experiment.json` y logs del contenedor
+  `experiment_cooperation_20261119`. Publicar números solo después de las corridas.
+
+**Bloqueos / límites**
+- Varias horas de cómputo: mantener Windows sin suspensión y WSL activo.
+- Demanda sintética; la calibración de campo y los peatones siguen pendientes.
+
 ## 2026-11-19 · Milton (con Codex) · feat/h1-milton-issues
 
 HEAD base `1b3b245`.
