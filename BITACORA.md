@@ -4,6 +4,23 @@ Registro de qué se hizo y qué sigue. La entrada más reciente va primero. El h
 
 Formato: `## <fecha> · <autor> · <rama>`, luego `HEAD`, **Hecho**, **Siguiente** y **Bloqueos**.
 
+## 2026-11-18 · Codex · codex/security-hardening
+
+HEAD de implementación `e6c50e4`, sobre la base `14f5aeb`.
+
+**Hecho**
+- Acceso por rol, confirmación de acciones, protección de datos y límites del asistente.
+- Chromium aprobó 21 comprobaciones del panel y 8 de evaluaciones como operador.
+- La suite Docker aprobó 183 pruebas. El benchmark de trazado excedió la meta tanto
+  en `main` como en la rama de seguridad.
+
+**Siguiente**
+- Recorrido local con el usuario y preparación del origen HTTPS si la demo se comparte.
+
+**Bloqueos**
+- Sigue pendiente la meta histórica del costo de trazado de 5 %. La prueba de Groq en vivo
+  requiere una credencial habilitada para ese fin.
+
 ## 2026-11-18 · Milton (con Codex) · feat/h1-milton-issues
 
 HEAD base `fbb3938` (cambios locales anteriores conservados).
