@@ -21,9 +21,16 @@ HEAD base `57f87e4` · rama `feat/h1-milton-issues`.
 - Verificación: Ruff aprobado; suite rápida 190 passed, 1 skipped (LLM real),
   2 deselected (`outputs/verification/cooperation-protocol-20261119-tests.log`).
 - Documentación en `docs/cooperation-experiment.md`.
+- Experimento iniciado como `experiment_cooperation_20261119`, con la primera
+  combinación alpha 0 / semilla 0 avanzando. Código, escenarios y configuración
+  verificados de solo lectura en Docker; modelos y salidas permanecen escribibles.
+- Se corrigió el lanzador para declarar montajes explícitos con `docker run`.
+  Un arranque de comprobación se interrumpió antes de completar la primera corrida
+  al detectar permisos heredados de Compose; se conservó como contenedor `_setup`
+  y se reinició sobre la misma instantánea, sin usar evaluaciones para decidirlo.
 
 **Siguiente**
-- Lanzar `bash scripts/run_experiment.sh cooperation_20261119`; progreso en
+- Seguir el progreso de `cooperation_20261119` en
   `outputs/evaluations/cooperation_20261119/experiment.json` y logs del contenedor
   `experiment_cooperation_20261119`. Publicar números solo después de las corridas.
 

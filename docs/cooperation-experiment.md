@@ -48,6 +48,10 @@ disponible mediante `rl.train --resume`, pero no se realiza automáticamente.
 
 No reutilice un identificador para un experimento distinto. El lanzador no
 sobrescribe una instantánea existente ni inicia un contenedor duplicado.
+Si se necesita recrear el contenedor conservando una instantánea existente, se
+puede pasar `--reuse-snapshot`. Se reutilizan la revisión y el identificador de
+imagen originales. Los montajes de código y escenarios se declaran explícitamente
+de solo lectura con `docker run --mount`, sin heredar permisos de Compose.
 
 ## Validación: comparación con idéntica demanda
 
