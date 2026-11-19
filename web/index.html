@@ -81,6 +81,17 @@
         <h2><span>04</span>Detenidos en semáforos</h2>
         <canvas id="chart-queue" height="150"></canvas>
       </section>
+      <section class="panel evaluation-panel" aria-labelledby="evaluation-title">
+        <h2 id="evaluation-title"><span>07</span>Resultados de evaluación</h2>
+        <label for="evaluation-run">Experimento</label>
+        <select id="evaluation-run"></select>
+        <div class="row">
+          <button id="evaluation-refresh" type="button">Actualizar resultados</button>
+          <a id="evaluation-csv" class="tiny" hidden>⇩ CSV</a>
+        </div>
+        <p id="evaluation-status" class="muted" aria-live="polite">Buscando evaluaciones…</p>
+        <div id="evaluation-results"></div>
+      </section>
       <p class="legend">
         <i class="lg car"></i>carro <i class="lg moto"></i>moto
         <i class="lg sg"></i>verde <i class="lg sy"></i>amarillo <i class="lg sr"></i>rojo
@@ -168,6 +179,7 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="traces.js"></script>
+  <script src="evaluations.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

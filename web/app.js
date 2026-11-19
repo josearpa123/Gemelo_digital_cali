@@ -2,6 +2,8 @@
 // The same messages carry the new trace events, handed to traces.js.
 const API = "";  // same origin: sim-api serves the panel, /api and /ws on :8000
 const SIGNAL_COLORS = { G: "#2bff88", g: "#1fcf6c", y: "#ffd60a", Y: "#ffd60a", r: "#ff3b5c", s: "#ff3b5c", u: "#ff9f1c", o: "#7fa3bd", O: "#7fa3bd" };
+// a lane light shows its most permissive link: green if any turn may go, then yellow, then red
+const SIGNAL_RANK = "GgyYuoOsr";
 const STRATEGY_COLORS = { fixed: "#7fa3bd", maxpressure: "#b388ff", rl: "#00e5ff" };
 const STRATEGY_NAMES = { fixed: "TIEMPO FIJO", maxpressure: "MAX-PRESSURE", rl: "AGENTES RL" };
 const DEMAND_NAMES = { peak: "HORA PICO", valley: "HORA VALLE", peak_plus: "PICO +30 %" };
@@ -32,7 +34,7 @@ const vehicleLayer = L.layerGroup().addTo(map);
 const signalLayer = L.layerGroup().addTo(map);
 const hubLayer = L.layerGroup().addTo(map);
 const vehicleMarkers = new Map();
-const signalMarkers = [];  // {marker, tls, index}
+const signalMarkers = [];  // {marker, tls, indices} · one per incoming lane
 const hubs = new Map();  // tls -> {marker, name}
 let selectedTls = null;
 let accidentSite = null, accidentMarker = null;
@@ -109,11 +111,13 @@ async function loadNetwork() {
   for (const f of geo.features) {
     const [lon, lat] = f.geometry.coordinates;
     if (f.properties.kind === "signal") {
+      // median (internal) and pedestrian lights stay in the simulation but not on the map
+      if (f.properties.role && f.properties.role !== "approach") continue;
       const marker = L.circleMarker([lat, lon], { renderer, radius: 4, weight: 1, color: "#02060d", fillOpacity: 1, fillColor: "#ff3b5c" })
         .bindTooltip(`Semáforo ${f.properties.name}`)
         .addTo(signalLayer);
       marker.on("click", () => Traces.selectTls(f.properties.tls, f.properties.name));
-      signalMarkers.push({ marker, tls: f.properties.tls, index: f.properties.index });
+      signalMarkers.push({ marker, tls: f.properties.tls, indices: f.properties.indices });
       const c = centers.get(f.properties.tls) || { lat: 0, lon: 0, n: 0, name: f.properties.name };
       c.lat += lat; c.lon += lon; c.n += 1;
       centers.set(f.properties.tls, c);
@@ -124,7 +128,8 @@ async function loadNetwork() {
   }
   // one clickable ring per intersection: selecting it filters its RL decisions in "Trazas"
   for (const [tls, c] of centers) {
-    const marker = L.circleMarker([c.lat / c.n, c.lon / c.n], { radius: 11, weight: 2, color: "#00e5ff", fill: true, fillOpacity: 0.04, className: "tls-hub" })
+    // same canvas as vehicles and lights: a click on a lower canvas never reaches its layers
+    const marker = L.circleMarker([c.lat / c.n, c.lon / c.n], { renderer, radius: 11, weight: 2, color: "#00e5ff", fill: true, fillOpacity: 0.04, className: "tls-hub" })
       .bindTooltip(c.name)
       .addTo(hubLayer);
     marker.on("click", () => Traces.selectTls(tls, c.name));
@@ -146,7 +151,7 @@ function render(s) {
     let m = vehicleMarkers.get(v.id);
     const color = v.type === "moto" ? "#ff9f1c" : "#22d3ee";
     if (!m) {
-      m = L.circleMarker([v.lat, v.lon], { renderer, radius: v.type === "moto" ? 2.6 : 3.4, weight: 0.6, color: "#02060d", fillColor: color, fillOpacity: 0.95 });
+      m = L.circleMarker([v.lat, v.lon], { renderer, interactive: false, radius: v.type === "moto" ? 2.6 : 3.4, weight: 0.6, color: "#02060d", fillColor: color, fillOpacity: 0.95 });
       m.addTo(vehicleLayer);
       vehicleMarkers.set(v.id, m);
     } else {
@@ -159,7 +164,9 @@ function render(s) {
 
   const states = Object.fromEntries(s.tls.map((t) => [t.id, t.state]));
   for (const sm of signalMarkers) {
-    const ch = (states[sm.tls] || "")[sm.index] || "r";
+    const state = states[sm.tls] || "";
+    const chars = sm.indices.map((i) => state[i] || "r");
+    const ch = chars.reduce((best, c) => (SIGNAL_RANK.indexOf(c) < SIGNAL_RANK.indexOf(best) ? c : best), "r");
     sm.marker.setStyle({ fillColor: SIGNAL_COLORS[ch] || "#ff3b5c" });
   }
   for (const tls of hubs.keys()) styleHub(tls);

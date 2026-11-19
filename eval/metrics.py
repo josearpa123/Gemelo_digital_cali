@@ -1,5 +1,6 @@
 """Metrics from SUMO tripinfo files plus Jain's fairness index."""
 
+import math
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
@@ -37,10 +38,24 @@ def trip_metrics(path: Path) -> dict:
     mean = lambda key: sum(t[key] for t in trips) / n if n else float("nan")  # noqa: E731
     return {
         "trips": n,
+        "completed": sum(t["finished"] for t in trips),
+        "completion_rate": sum(t["finished"] for t in trips) / n if n else 0.0,
         "unfinished": sum(not t["finished"] for t in trips),
         "mean_travel_time": mean("duration"),
         "mean_wait": mean("waiting"),
+        "wait_p95": percentile([t["waiting"] for t in trips], 0.95),
+        "wait_max": max((t["waiting"] for t in trips), default=0.0),
     }
+
+
+def percentile(values: list[float], q: float) -> float:
+    """Linearly interpolated empirical quantile; all trips, including unfinished ones."""
+    if not values:
+        return float("nan")
+    xs = sorted(values)
+    position = (len(xs) - 1) * q
+    low, high = math.floor(position), math.ceil(position)
+    return xs[low] + (xs[high] - xs[low]) * (position - low)
 
 
 def approach_metrics(wait_s: dict, vehicles: dict, queue_sum: dict, queue_max: dict, steps: int):
@@ -53,4 +68,5 @@ def approach_metrics(wait_s: dict, vehicles: dict, queue_sum: dict, queue_max: d
         "queue_mean": sum(queue_sum.values()) / (len(queue_sum) * steps) if queue_sum else 0.0,
         "queue_max": max(queue_max.values(), default=0),
         "approaches": len(used),
+        "approach_wait_max": max(mean_wait, default=0.0),
     }

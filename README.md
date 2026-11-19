@@ -1,5 +1,15 @@
 # 🚦 Gemelo digital de movilidad urbana · Cali
 
+**Entrenamiento y evaluación (18 nov):** [guía con comandos para WSL](docs/training-and-evaluation.md),
+[protocolo de calibración con aforos reales](docs/calibration.md).
+Incluye reanudación, huellas de red/datos/código, validación automática y resultados
+comparativos en el panel. La demanda sigue siendo sintética.
+Evidencia y pendientes: [informe de implementación](docs/implementation-report-20261118.md).
+**Validación terminada:** PPO alpha 0, 3M de pasos, cinco semillas por escenario:
+en pico, 69,9 % menos espera que fijo y 27,3 % menos que max-pressure.
+[Resultados, CSV, figuras y limitaciones](docs/results/validation-20261118/README.md).
+La prueba final sigue reservada; son resultados de simulación con demanda sintética.
+
 **Semáforos que aprenden.** Un gemelo digital de la **Av. Roosevelt** de Cali construido en [SUMO](https://eclipse.dev/sumo/) a partir de OpenStreetMap, donde cada intersección semaforizada es un **agente de aprendizaje por refuerzo** que decide sus fases y se coordina con sus vecinas. Lo comparamos contra el tiempo fijo y un controlador adaptativo, con carros, motos y peatones, en un panel web con mapa en vivo.
 
 > Proyecto académico · Milton Quintero (simulación y RL) · Jose Arias (panel web y evaluación)
@@ -21,7 +31,7 @@
 | 2 | Tres escenarios de demanda: **valle**, **pico** y **evento** (cierre de carril por accidente) | Dataset de demanda reproducible por semilla |
 | 3 | Tres estrategias sobre el mismo tráfico: **tiempo fijo**, **adaptativo** (max-pressure / actuated) y **RL multiagente** | Mismas rutas y semillas para todas |
 | 4 | Los agentes RL logran **≥ 15 % menos tiempo de espera** que el tiempo fijo en hora pico | 5 semillas de evaluación nunca vistas en el entrenamiento |
-| 5 | Métricas: tiempo de viaje, espera, colas y **equidad entre vías** (índice de Jain) | `outputs/eval/` |
+| 5 | Métricas: tiempo de viaje, espera, colas y **equidad entre vías** (índice de Jain) | `outputs/evaluations/` (histórico: `outputs/eval/`) |
 | 6 | Panel web: mapa en vivo, semáforos, eventos, selector de estrategia, gráficas, **trazas** y **asistente de IA** | `http://localhost:8000` |
 
 > **Regla del proyecto:** ningún número de este repo se inventa. Todo resultado sale de una ejecución real y se cita el archivo de `outputs/` que lo produjo. Si el objetivo del 15 % no se cumple, se reporta con los números reales.
@@ -41,8 +51,9 @@ Aprendizaje por refuerzo multiagente (**MARL**): un agente por semáforo, todos 
 
 **¿Y el dataset?** En RL el agente aprende de la experiencia que genera en el simulador, pero esa experiencia depende de la demanda. Por eso generamos un **dataset de escenarios** (`python -m sim.demand --dataset`):
 
-- **Entrenamiento:** 20 archivos de hora pico (semillas 100–119); cada episodio toma uno al azar.
-- **Evaluación:** semillas 0–4 de valle, pico y evento, **nunca vistas** durante el entrenamiento.
+- **Entrenamiento:** semillas 100–119 para pico, valle y evento; `--scenarios` elige la mezcla (por defecto solo pico).
+- **Validación:** semillas 200–204 para seleccionar parámetros.
+- **Prueba final:** semillas 300–304, reservadas hasta fijar el modelo. Las históricas 0–4 se conservan con `--split legacy`.
 - 35 % de motos (vClass `motorcycle`); los viajes entran y salen por los bordes de la red, con mayor peso en la Roosevelt y sus transversales semaforizadas.
 - `scenarios/roosevelt4/demand/manifest.csv` registra cada archivo con sus conteos.
 
@@ -57,6 +68,11 @@ Aprendizaje por refuerzo multiagente (**MARL**): un agente por semáforo, todos 
 Todo está en **`http://localhost:8000`**: mapa, controles, gráficas, trazas y asistente. FastAPI sirve también los archivos de `web/`. nginx en `:8080` quedó como opción (`docker compose --profile nginx up -d web`).
 
 Controles: estrategia (tiempo fijo · max-pressure · agentes RL), reiniciar con el mismo tráfico para comparar, pausa, velocidad (1×–50×), provocar/despejar accidente y cambiar entre hora pico y valle. Las gráficas guardan una serie por corrida para comparar estrategias lado a lado.
+
+“Resultados de evaluación” muestra reportes completados: espera media ± desviación,
+P95, máxima, viajes completados, colas, Jain, teletransportes y reducciones frente a
+fijo y max-pressure con IC 95 %. Se identifica el split, las semillas y las corridas
+cortas de comprobación; permite descargar el CSV.
 
 ### Trazas
 
@@ -162,9 +178,9 @@ powershell -ExecutionPolicy Bypass -File scripts\medir_arranque.ps1    # Windows
 | `make test-live` | **una** llamada real a Groq con tu clave: modelo, tokens, costo y límites de la cuenta |
 | `make bench-tracing` | costo del trazado sobre la simulación → `outputs/bench/tracing.json` |
 | `make dataset` | regenera el dataset de demanda (≈ 6 s) |
-| `make train ALPHA=0 SEED=0` | entrenamiento PPO en segundo plano (`docker logs -f train_a0_s0`) |
+| `make train ALPHA=0 SEED=0` | PPO en segundo plano; imprime nombre único y comando de logs; valida al terminar |
 | `make tensorboard` | curvas de entrenamiento en `http://localhost:6006` |
-| `make evaluate MODELS="models/ppo_…" SCENARIOS="valley peak event"` | fijo · max-pressure · RL sobre las semillas de evaluación 0–4 → `outputs/eval/` (`summary.md`, `goal_check.md`) |
+| `make evaluate MODELS="models/ppo_…"` | fijo · max-pressure · RL en validación 200–204 → `outputs/evaluations/`; prueba final: `SPLIT=test EVAL_ARGS=--final-test` |
 | `make train-smoke` | PPO 1000 timesteps y carga del modelo (test lento) |
 | `make demo` | levanta el sistema y corre la checklist de la demo |
 | `make e2e` | prueba del panel en un navegador real (Playwright en Docker), capturas en `outputs/e2e/` |
@@ -180,6 +196,7 @@ Desde otro equipo de la misma red: `http://<IP-del-equipo>:8000`.
 | H1 · Demo (red real, pico con motos, 3 estrategias, mapa en vivo) | 29 oct | 🔄 red ✅ · dataset ✅ · panel web ✅ · max-pressure ✅ · evaluación ✅ · PPO entrenando |
 | H-TRAZAS · Trazas, asistente de IA, panel en :8000 | 31 oct – 3 nov | 🔄 implementado; pendiente revisión (ver `PLAN.md`) |
 | Agente RL cíclico (mantener/avanzar) | 31 oct | ✅ código y tests · ⏳ falta reentrenar (el modelo actual es el anterior: para mostrar el panel usar Max-pressure) |
+| Semáforos realistas (2 fases, ciclo 90 s, sin luces en el separador) | 31 oct | ✅ red regenerada; espera media en pico: fijo 55,6 s · max-pressure 24,2 s (`outputs/eval/summary.md`) · ⏳ reentrenar RL sobre la red nueva |
 | H2 · Corredor completo (6–9 tls), peatones, 3 escenarios | 2 nov | ⏳ |
 | H3 · MARL independiente vs coordinado (α = 0 vs 0,3) | 9 nov | ⏳ |
 | H4 · Evaluación 5 semillas, tablas, figuras, informe | 16 nov | ⏳ |
@@ -189,7 +206,7 @@ Detalle en [`PLAN.md`](PLAN.md), avance día a día en [`BITACORA.md`](BITACORA.
 ## Estructura
 
 ```
-sim/        red (OSM→netconvert), demanda/dataset, controladores, runner TraCI
+sim/        red (OSM→netconvert + programas de semáforo propios), demanda/dataset, controladores, runner TraCI
 rl/         entorno multiagente, observación con vecinas, recompensa con α, entrenamiento
 api/        FastAPI: /health, /api/network, /api/control, /ws/state
 web/        panel (Leaflet + Chart.js) servido por nginx

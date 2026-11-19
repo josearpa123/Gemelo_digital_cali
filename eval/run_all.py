@@ -1,21 +1,25 @@
-"""Evaluate strategies on the evaluation split (seeds never seen in training).
+"""Compare strategies on validation, final-test or historical demand seeds.
 
 Each (strategy, scenario, seed) runs one SUMO episode in its own process with
---tripinfo-output under outputs/eval/, samples approach queues every step and writes
-runs.csv, summary.csv/.md and goal_check.md (RL vs fixed waiting time in peak, 15 % goal).
+--tripinfo-output under outputs/evaluations/, samples approach queues every step and writes
+CSV/Markdown/JSON reports and figures (RL vs fixed and max-pressure).
 
-  python -m eval.run_all --models models/ppo_a --models models/ppo_b --seeds 0 1 2 3 4
+  python -m eval.run_all --models models/ppo_a --split validation --scenarios valley peak event
 """
 
 import argparse
 import csv
+import json
+import math
 import multiprocessing
 import random
 import statistics
 from concurrent.futures import ProcessPoolExecutor
+from datetime import UTC, datetime
 from pathlib import Path
 
-from sim.demand import route_path
+from sim.artifacts import capture_inputs, verify_model_network
+from sim.demand import FLOWS, SPLIT_SEEDS, route_path
 
 NET = Path("scenarios/roosevelt4/roosevelt4.net.xml")
 OUT = Path("outputs/eval")
@@ -48,6 +52,8 @@ def run_one(job: dict) -> dict:
         model = Path(job["model"])
         runner.strategies[strategy] = lambda: RLController(str(net), model)
     event = load_event(net) if scenario == "event" else None
+    if scenario == "event" and event is None:
+        raise ValueError("event evaluation requires a .event.json file")
 
     runner.start(strategy)
     approaches: dict[str, list[str]] = {}
@@ -88,7 +94,20 @@ def run_one(job: dict) -> dict:
     return row
 
 
-METRICS = ["mean_wait", "mean_travel_time", "queue_mean", "queue_max", "jain_wait", "teleports"]
+METRICS = [
+    "mean_wait",
+    "wait_p95",
+    "wait_max",
+    "mean_travel_time",
+    "queue_mean",
+    "queue_max",
+    "jain_wait",
+    "approach_wait_max",
+    "completed",
+    "unfinished",
+    "completion_rate",
+    "teleports",
+]
 
 
 def summarize(rows: list[dict]) -> list[dict]:
@@ -108,9 +127,8 @@ def summarize(rows: list[dict]) -> list[dict]:
 
 def summary_markdown(summary: list[dict]) -> str:
     lines = [
-        "| Escenario | Estrategia | n | Espera media (s) | Tiempo de viaje (s) | Cola media | "
-        "Cola máx | Jain (espera) | Teletransportes |",
-        "|---|---|---|---|---|---|---|---|---|",
+        "| Escenario | Estrategia | n | " + " | ".join(METRICS) + " |",
+        "|" + "---|" * (3 + len(METRICS)),
     ]
     for s in summary:
         cells = [f"{s[f'{m}_mean']:.2f} ± {s[f'{m}_std']:.2f}" for m in METRICS]
@@ -126,7 +144,7 @@ def bootstrap_ci(xs: list[float], n: int = 10_000, seed: int = 0) -> tuple[float
     return means[int(0.025 * n)], means[int(0.975 * n) - 1]
 
 
-def goal_check(rows: list[dict], scenario: str = "peak") -> str:
+def goal_check(rows: list[dict], scenario: str = "peak", *, full_duration: bool = True) -> str:
     by = {
         (r["strategy"], r["seed"]): float(r["mean_wait"]) for r in rows if r["scenario"] == scenario
     }
@@ -145,13 +163,15 @@ def goal_check(rows: list[dict], scenario: str = "peak") -> str:
         reds = [
             (by[("fixed", s)] - by[(strategy, s)]) / by[("fixed", s)]
             for s in seeds
-            if (strategy, s) in by
+            if (strategy, s) in by and by[("fixed", s)] > 0
         ]
         if not reds:
             continue
         lo, hi = bootstrap_ci(reds)
         mean = statistics.fmean(reds)
         verdict = "CUMPLE" if mean >= GOAL else "NO CUMPLE"
+        if len(reds) < 5 or not full_duration:
+            verdict = "COMPROBACIÓN PARCIAL"
         lines.append(
             f"| {strategy} | {len(reds)} | {mean:+.1%} | [{lo:+.1%}, {hi:+.1%}] | {verdict} |"
         )
@@ -163,6 +183,166 @@ def write_csv(path: Path, rows: list[dict]) -> None:
         writer = csv.DictWriter(fh, fieldnames=list(rows[0]), lineterminator="\n")
         writer.writeheader()
         writer.writerows(rows)
+
+
+def comparisons(rows: list[dict]) -> list[dict]:
+    """Paired reductions against both baselines; nonpositive baselines are undefined."""
+    results = []
+    for scenario in sorted({r["scenario"] for r in rows}):
+        by = {(r["strategy"], r["seed"]): r for r in rows if r["scenario"] == scenario}
+        for baseline in ("fixed", "maxpressure"):
+            for strategy in sorted({st for st, _ in by if st.startswith("rl:")}):
+                pairs = [
+                    (base, by[(strategy, seed)])
+                    for (st, seed), base in by.items()
+                    if st == baseline and (strategy, seed) in by
+                ]
+                reductions = [
+                    (a["mean_wait"] - b["mean_wait"]) / a["mean_wait"]
+                    for a, b in pairs
+                    if a["mean_wait"] > 0
+                ]
+                lo, hi = bootstrap_ci(reductions) if reductions else (None, None)
+                results.append(
+                    {
+                        "scenario": scenario,
+                        "strategy": strategy,
+                        "baseline": baseline,
+                        "n": len(reductions),
+                        "wait_reduction": statistics.fmean(reductions) if reductions else None,
+                        "ci95_low": lo,
+                        "ci95_high": hi,
+                        "completed_delta": statistics.fmean(
+                            b["completed"] - a["completed"] for a, b in pairs
+                        )
+                        if pairs
+                        else None,
+                        "teleports_delta": statistics.fmean(
+                            b["teleports"] - a["teleports"] for a, b in pairs
+                        )
+                        if pairs
+                        else None,
+                    }
+                )
+    return results
+
+
+def json_safe(value):
+    if isinstance(value, dict):
+        return {k: json_safe(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [json_safe(v) for v in value]
+    return None if isinstance(value, float) and not math.isfinite(value) else value
+
+
+def run_evaluation(
+    *,
+    net=NET,
+    models=(),
+    scenarios=("peak",),
+    split="validation",
+    seeds=None,
+    seconds=3600,
+    workers=2,
+    out=None,
+    strategies=("fixed", "maxpressure"),
+    allow_legacy=False,
+) -> Path:
+    if split not in SPLIT_SEEDS:
+        raise ValueError("split must be validation, test or legacy")
+    seeds = list(SPLIT_SEEDS[split]) if seeds is None else list(seeds)
+    if not seeds or len(set(seeds)) != len(seeds) or not set(seeds) <= set(SPLIT_SEEDS[split]):
+        raise ValueError(f"seeds must be unique and belong to split {split}")
+    if (
+        seconds <= 0
+        or workers <= 0
+        or not scenarios
+        or len(set(scenarios)) != len(scenarios)
+        or not set(scenarios) <= set(FLOWS)
+    ):
+        raise ValueError("invalid scenarios, seconds or workers")
+    if (
+        not strategies
+        or len(set(strategies)) != len(strategies)
+        or not set(strategies) <= {"fixed", "maxpressure"}
+    ):
+        raise ValueError("baseline strategies must be fixed and/or maxpressure")
+    models = [Path(m) for m in models]
+    if len({m.name for m in models}) != len(models):
+        raise ValueError("model directories must have distinct names")
+    routes = [route_path(net, sc, s) for sc in scenarios for s in seeds]
+    for route in routes:
+        if not route.exists():
+            raise FileNotFoundError(f"{route}: generate the dataset first")
+    compatibility = {}
+    for model in models:
+        if not (model / "model.zip").exists():
+            raise FileNotFoundError(model / "model.zip")
+        compatibility[model.name] = verify_model_network(
+            model / "model.zip", net, allow_legacy=allow_legacy
+        )
+    stamp = datetime.now(UTC).strftime("eval_%Y%m%d-%H%M%S-%f")
+    out = Path(out) if out is not None else Path("outputs/evaluations") / stamp
+    out.mkdir(parents=True, exist_ok=True)
+    if (out / "evaluation.json").exists():
+        raise FileExistsError(f"{out}: use a new evaluation output directory")
+    metadata = {
+        "schema_version": 1,
+        "status": "running",
+        "split": split,
+        "seeds": seeds,
+        "scenarios": list(scenarios),
+        "seconds": seconds,
+        "started_utc": datetime.now(UTC).isoformat(),
+        "models": [str(m) for m in models],
+        "compatibility": compatibility,
+        "provenance": capture_inputs(net, routes),
+    }
+    meta_path = out / "evaluation.json"
+    meta_path.write_text(json.dumps(metadata, indent=2), encoding="utf-8")
+    selected = [(s, None) for s in strategies]
+    selected += [(strategy_name(m), m / "model.zip") for m in models]
+    jobs = [
+        {
+            "net": str(net),
+            "scenario": sc,
+            "seed": seed,
+            "strategy": st,
+            "model": str(model) if model else None,
+            "seconds": seconds,
+            "out": str(out),
+        }
+        for sc in scenarios
+        for seed in seeds
+        for st, model in selected
+    ]
+    try:
+        with ProcessPoolExecutor(max_workers=workers) as pool:
+            rows = list(pool.map(run_one, jobs))
+        write_csv(out / "runs.csv", rows)
+        summary = summarize(rows)
+        write_csv(out / "summary.csv", summary)
+        (out / "summary.md").write_text(summary_markdown(summary), encoding="utf-8")
+        report = "\n".join(goal_check(rows, sc, full_duration=seconds >= 3600) for sc in scenarios)
+        (out / "goal_check.md").write_text(report, encoding="utf-8")
+        from eval.figures import plot_summary
+
+        plot_summary(summary, out)
+        metadata["status"] = "completed"
+        payload = json_safe(metadata | {"summary": summary, "comparisons": comparisons(rows)})
+        temporary = out / "report.json.tmp"
+        temporary.write_text(
+            json.dumps(payload, ensure_ascii=False, indent=2, allow_nan=False), encoding="utf-8"
+        )
+        temporary.replace(out / "report.json")
+        print(summary_markdown(summary), flush=True)
+        print(report, flush=True)
+    except BaseException as exc:
+        metadata.update(status="failed", error=f"{type(exc).__name__}: {exc}")
+        raise
+    finally:
+        meta_path.write_text(json.dumps(metadata, indent=2), encoding="utf-8")
+    return out
 
 
 def main() -> None:
@@ -178,40 +358,28 @@ def main() -> None:
     )
     parser.add_argument("--strategies", nargs="+", default=["fixed", "maxpressure"])
     parser.add_argument("--scenarios", nargs="+", default=["peak"])
-    parser.add_argument("--seeds", nargs="+", type=int, default=[0, 1, 2, 3, 4])
+    parser.add_argument("--split", choices=list(SPLIT_SEEDS), default="validation")
+    parser.add_argument("--final-test", action="store_true", help="confirm frozen-model final test")
+    parser.add_argument("--allow-legacy", action="store_true")
+    parser.add_argument("--seeds", nargs="+", type=int)
     parser.add_argument("--seconds", type=int, default=3600)
     parser.add_argument("--workers", type=int, default=4)
-    parser.add_argument("--out", type=Path, default=OUT)
+    parser.add_argument("--out", type=Path)
     args = parser.parse_args()
-
-    args.out.mkdir(parents=True, exist_ok=True)
-    strategies = [(s, None) for s in args.strategies]
-    strategies += [(strategy_name(m), m / "model.zip") for m in args.models]
-    jobs = [
-        {
-            "net": str(args.net),
-            "scenario": sc,
-            "seed": seed,
-            "strategy": st,
-            "model": str(model) if model else None,
-            "seconds": args.seconds,
-            "out": str(args.out),
-        }
-        for sc in args.scenarios
-        for seed in args.seeds
-        for st, model in strategies
-    ]
-    with ProcessPoolExecutor(max_workers=args.workers) as pool:
-        rows = list(pool.map(run_one, jobs))
-
-    write_csv(args.out / "runs.csv", rows)
-    summary = summarize(rows)
-    write_csv(args.out / "summary.csv", summary)
-    (args.out / "summary.md").write_text(summary_markdown(summary))
-    report = "\n".join(goal_check(rows, sc) for sc in args.scenarios)
-    (args.out / "goal_check.md").write_text(report)
-    print(summary_markdown(summary))
-    print(report)
+    if args.split == "test" and not args.final_test:
+        parser.error("final test requires --final-test; freeze model selection first")
+    run_evaluation(
+        net=args.net,
+        models=args.models,
+        scenarios=args.scenarios,
+        split=args.split,
+        seeds=args.seeds,
+        seconds=args.seconds,
+        workers=args.workers,
+        out=args.out,
+        strategies=args.strategies,
+        allow_legacy=args.allow_legacy,
+    )
 
 
 if __name__ == "__main__":

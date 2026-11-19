@@ -1,7 +1,9 @@
 """Build a georeferenced SUMO network for a Cali zone from OpenStreetMap.
 
 The raw OSM extract is stored next to the network (scenarios/<zone>/osm.xml) so the
-network can be rebuilt without depending on Overpass availability.
+network can be rebuilt without depending on Overpass availability. Signal programs are
+not netconvert's guesses: sim/network/signals.py writes a two-phase program per junction
+into the network after netconvert.
 """
 
 import argparse
@@ -12,6 +14,8 @@ import urllib.request
 from pathlib import Path
 
 import sumolib
+
+from sim.network import signals
 
 OVERPASS_URLS = [
     "https://overpass-api.de/api/interpreter",
@@ -44,6 +48,9 @@ NETCONVERT_ARGS = [
     "--tls.guess-signals",
     "--tls.discard-simple",
     "--tls.join",
+    # dual carriageways join several nodes into one tls: links inside the junction (the
+    # median) are not signalised in Cali, only the approaches
+    "--tls.uncontrolled-within",
     "--tls.default-type",
     "static",
     "--tls.yellow.time",
@@ -100,6 +107,7 @@ def build_network(zone: str, out_root: Path) -> Path:
         ["netconvert", "--osm-files", str(osm), "-o", str(net), *NETCONVERT_ARGS, *extra],
         check=True,
     )
+    signals.apply(net)
     return net
 
 

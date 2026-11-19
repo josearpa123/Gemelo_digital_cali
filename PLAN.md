@@ -15,6 +15,24 @@
 
 ## 1. Arquitectura
 
+### Mejoras autorizadas · 18 nov 2026
+
+El usuario autorizó implementar y documentar: evaluación automática frente a fijo y
+max-pressure; separación entrenamiento/validación/prueba; reanudación desde checkpoints;
+huellas de red, datos y código; entrenamiento con demanda variada; métricas de cola,
+espera extrema y viajes completados; resultados comparativos en el panel.
+Se conserva la corrida ya iniciada y todos los cambios locales anteriores.
+La calibración con aforos reales y la demanda peatonal requieren datos y validación
+adicional: se documentan sin presentarlas como resueltas.
+
+Ver `docs/training-and-evaluation.md` para comandos, protocolo y limitaciones.
+Implementado y verificado: Docker, Ruff, 167 pruebas rápidas, humo con reanudación,
+8 comprobaciones de navegador y pipeline corto real. Evidencia en
+`docs/implementation-report-20261118.md`. Corrida larga y validación terminadas:
+en pico, PPO reduce espera 69,9 % vs fijo y 27,3 % vs max-pressure. Evidencia exportada
+en `docs/results/validation-20261118/`. Pendientes: experimento multisemilla,
+prueba final con modelo fijado, aforos y peatones.
+
 ```
                          ┌──────────────── docker compose ────────────────┐
  scenarios/ (vol) ──────►│ sim-api :8000                                  │
@@ -192,6 +210,11 @@ Archivos nuevos: `sim/tracing.py` (Tracer, cola, escritor SQLite, log JSON), `si
   - en la ingesta del entrenamiento, un estado inválido rompía la lectura.
   Sigue abierto: el costo del trazado (> 5 %).
 
+### Semáforos realistas (31 oct, adelantado de #4)
+- `--tls.uncontrolled-within` + `sim/network/signals.py`: 2 fases por intersección (Roosevelt 50 s, carrera 30 s, amarillo 3 s, todo rojo 2 s; ciclo 90 s), con peatones en verde mientras su calle está en rojo. Los tiempos son de diseño; calibrar con aforos si se consiguen.
+- Resultados con la red nueva en `outputs/eval/` (la anterior en `outputs/eval_net_v1/`): pico fijo 55,6 s vs max-pressure 24,2 s (+56,3 %). Los modelos RL existentes quedan obsoletos: hay que reentrenar.
+- Test: `tests/unit/test_signals.py`.
+
 ### H2 · Corredor completo (2 nov)
 Corredor de 6–9 tls revisado en netedit; peatones en todas las intersecciones; escenarios valley/peak/event; `actuated` como 4.ª estrategia; mapa completo (pausa, velocidad, cambio a pico, lado a lado, fase en cada semáforo). Tests: red 6–9 tls, peatones presentes, 3 escenarios × 3 estrategias × 300 pasos, e2e de todos los controles.
 
@@ -203,9 +226,9 @@ PPO α=0 y α=0,3 (≥2 semillas de entrenamiento cada uno), curvas en TensorBoa
 
 ### Dataset de escenarios para entrenar y evaluar (transversal, H1–H4)
 En RL el agente aprende de la experiencia que genera en SUMO, pero **el entrenamiento sí requiere un dataset de escenarios de demanda generado por nosotros**:
-- `sim/demand.py` genera archivos `.rou.xml` reproducibles por `(escenario, semilla)`, con 35 % de motos en pico y peatones.
+- `sim/demand.py` genera archivos `.rou.xml` reproducibles por `(escenario, semilla)`, con carros y 35 % de motos. La generación de peatones sigue pendiente.
 - **Split de entrenamiento:** semillas 100–119 (pico en H1; valle, pico y evento desde H2). Cada episodio toma un archivo al azar de este split.
-- **Split de evaluación:** semillas 0–4 por escenario, nunca vistas en el entrenamiento (objetivo del 15 % medido aquí).
+- **Validación:** semillas 200–204; **prueba final:** 300–304, después de fijar el modelo. Las 0–4 se conservan como evaluación histórica ya utilizada (`legacy`).
 - `scenarios/<zona>/demand/manifest.csv` registra split, escenario, semilla, archivo y conteos; un test verifica que los splits son disjuntos.
 - Opcional: calibrar volúmenes con aforos reales de Cali (Secretaría de Movilidad o datos abiertos) y citar la fuente.
 - Issues en GitHub: #1 (dataset), #2 (controladores), #3 (PPO), #4 (netedit), milestone «H1 · Demo (29 oct)».

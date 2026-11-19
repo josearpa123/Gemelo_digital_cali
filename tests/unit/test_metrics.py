@@ -37,6 +37,10 @@ def test_trip_metrics_include_unfinished(tmp_path):
     assert m["trips"] == 3 and m["unfinished"] == 1
     assert m["mean_travel_time"] == pytest.approx(120.0)
     assert m["mean_wait"] == pytest.approx(20.0)
+    assert m["completed"] == 2
+    assert m["completion_rate"] == pytest.approx(2 / 3)
+    assert m["wait_max"] == 40
+    assert m["wait_p95"] == pytest.approx(38)
 
 
 def test_approach_metrics():
