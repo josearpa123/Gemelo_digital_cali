@@ -1,0 +1,11 @@
+.git
+.worktrees
+.env
+.env.*
+secrets
+models
+outputs
+.pytest_cache
+.ruff_cache
+**/__pycache__
+**/*.pyc

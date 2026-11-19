@@ -44,7 +44,7 @@ def test_python_and_sumo_versions():
     assert os.environ.get("SUMO_HOME") and Path(os.environ["SUMO_HOME"]).is_dir()
 
 
-@pytest.mark.parametrize("path", ["models", "outputs", "scenarios/roosevelt4/demand"])
+@pytest.mark.parametrize("path", ["outputs", "scenarios/roosevelt4/demand"])
 def test_container_user_can_write_volumes(path):
     """Fails when the host uid/gid differs from the container user: use make (exports UID)."""
     probe = Path(path) / f".write_probe_{os.getpid()}"

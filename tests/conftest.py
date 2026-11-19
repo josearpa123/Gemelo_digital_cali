@@ -6,6 +6,8 @@ import pytest
 
 # automated tests never call a real LLM nor write into the real outputs/traces.db
 os.environ["LLM_PROVIDER"] = "fake"
+os.environ["DEMO_ACCESS"] = "local"
+os.environ["DEMO_FAULTS"] = "1"
 _GROQ_KEY = os.environ.pop("GROQ_API_KEY", None)  # only handed to `live` tests
 _TMP = Path(tempfile.mkdtemp(prefix="gemelo_tests_"))
 os.environ["OUTPUTS_DIR"] = str(_TMP / "outputs")  # trace log, checkpoints, training files

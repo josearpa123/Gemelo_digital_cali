@@ -2,16 +2,19 @@
 adapter covers them; `fake` answers locally (tests and e2e, no network, no cost)."""
 
 import json
+import math
 import os
 import re
 import time
 from dataclasses import dataclass, field
+from email.utils import parsedate_to_datetime
 
 import httpx
 
 from api.llm import keystore
 
-TIMEOUT_S = 20.0
+TIMEOUT_S = 2.0
+MAX_RESPONSE_BYTES = 65536
 DEFAULTS = {
     "groq": ("openai/gpt-oss-120b", "https://api.groq.com/openai/v1", "GROQ_API_KEY"),
     "openai_compat": ("llama3.1", "http://host.docker.internal:11434/v1", "LLM_API_KEY"),
@@ -74,17 +77,24 @@ class LLMSettings:
     @classmethod
     def from_env(cls, key_file=None) -> "LLMSettings":
         provider = os.environ.get("LLM_PROVIDER") or "groq"
-        model, base_url, key_env = DEFAULTS.get(provider, DEFAULTS["openai_compat"])
+        if provider not in DEFAULTS:
+            raise ValueError("Proveedor LLM no configurado")
+        model, base_url, key_env = DEFAULTS[provider]
         settings = cls(
             provider=provider,
             model=os.environ.get("LLM_MODEL") or model,
-            base_url=os.environ.get("LLM_BASE_URL") or base_url,
+            base_url=(os.environ.get("LLM_BASE_URL") or base_url)
+            if provider == "openai_compat"
+            else base_url,
             api_key="",
             plan=os.environ.get("LLM_PLAN") or "free",
             reasoning_effort=os.environ.get("LLM_REASONING_EFFORT", "low") or None,
             env_key=os.environ.get(key_env, "") if key_env else "",
         )
-        settings.use_key(keystore.load(key_file) if key_file else keystore.load())
+        panel_key = (
+            (keystore.load(key_file) if key_file else keystore.load()) if provider == "groq" else ""
+        )
+        settings.use_key(panel_key)
         return settings
 
     def use_key(self, panel_key: str) -> None:
@@ -101,7 +111,6 @@ class LLMSettings:
         return {
             "provider": self.provider,
             "model": self.model,
-            "base_url": self.base_url,
             "plan": self.plan,
             "key_required": self.provider == "groq",
             "key_configured": bool(self.api_key),
@@ -143,40 +152,71 @@ class OpenAICompatClient(LLMClient):
             body["response_format"] = {"type": "json_object"}
         if s.reasoning_effort and "gpt-oss" in s.model:
             body["reasoning_effort"] = s.reasoning_effort
-        headers = {"Authorization": f"Bearer {s.api_key}"} if s.api_key else {}
+        headers = {"Accept-Encoding": "identity"}
+        if s.api_key:
+            headers["Authorization"] = f"Bearer {s.api_key}"
         started = time.perf_counter()
-        async with httpx.AsyncClient(
-            base_url=s.base_url, timeout=TIMEOUT_S, transport=transport or self.transport
-        ) as http:
-            try:
-                res = await http.post("/chat/completions", json=body, headers=headers)
-            except httpx.TimeoutException as exc:
-                raise LLMTimeout(f"sin respuesta en {TIMEOUT_S:.0f} s") from exc
-            except httpx.TransportError as exc:
-                raise LLMServerError(f"error de red: {type(exc).__name__}") from exc
-        latency = time.perf_counter() - started
-        limits = {k: v for k, v in res.headers.items() if k.startswith("x-ratelimit")}
+        try:
+            async with (
+                httpx.AsyncClient(
+                    base_url=s.base_url,
+                    timeout=TIMEOUT_S,
+                    trust_env=False,
+                    transport=transport or self.transport,
+                ) as http,
+                http.stream("POST", "/chat/completions", json=body, headers=headers) as res,
+            ):
+                self._check_status(res)
+                if res.headers.get("content-encoding", "identity").lower() != "identity":
+                    raise LLMServerError("codificación inesperada del proveedor")
+                content = bytearray()
+                async for chunk in res.aiter_bytes(chunk_size=4096):
+                    if len(content) + len(chunk) > MAX_RESPONSE_BYTES:
+                        raise LLMServerError("respuesta demasiado grande")
+                    content.extend(chunk)
+                limits = {k: v for k, v in res.headers.items() if k.startswith("x-ratelimit")}
+        except httpx.TimeoutException as exc:
+            raise LLMTimeout("tiempo del proveedor agotado") from exc
+        except httpx.RequestError as exc:
+            raise LLMServerError("error de transporte del proveedor") from exc
+        try:
+            payload = json.loads(content)
+            usage = payload.get("usage") or {}
+            cached = (usage.get("prompt_tokens_details") or {}).get("cached_tokens") or 0
+            text = payload["choices"][0]["message"].get("content") or ""
+            if not isinstance(text, str) or len(text) > 6000:
+                raise ValueError("contenido inválido")
+            return LLMResult(
+                text=text,
+                model=s.model,
+                tokens_in=max(0, int(usage.get("prompt_tokens", 0))),
+                tokens_out=max(0, int(usage.get("completion_tokens", 0))),
+                tokens_cached=max(0, int(cached)),
+                latency_s=time.perf_counter() - started,
+                limits=limits,
+            )
+        except (ValueError, KeyError, TypeError, IndexError, AttributeError, OverflowError) as exc:
+            raise LLMServerError("respuesta inválida del proveedor") from exc
+
+    @staticmethod
+    def _check_status(res: httpx.Response) -> None:
         if res.status_code == 429:
-            retry = res.headers.get("retry-after")
-            raise LLMRateLimit("429 límite de peticiones", float(retry) if retry else None)
+            value = res.headers.get("retry-after", "0")
+            try:
+                retry = float(value)
+            except ValueError:
+                try:
+                    retry = parsedate_to_datetime(value).timestamp() - time.time()
+                except (ValueError, OverflowError):
+                    retry = 0
+            retry = retry if math.isfinite(retry) and retry > 0 else None
+            raise LLMRateLimit("429 límite de peticiones", retry)
         if res.status_code in (401, 403):
             raise LLMAuthError(f"{res.status_code} clave rechazada por el proveedor")
         if res.status_code >= 500:
             raise LLMServerError(f"{res.status_code} error del servidor")
-        if res.status_code >= 400:
+        if not res.is_success:
             raise LLMBadRequest(f"{res.status_code} petición rechazada por el proveedor")
-        payload = res.json()
-        usage = payload.get("usage") or {}
-        cached = (usage.get("prompt_tokens_details") or {}).get("cached_tokens") or 0
-        return LLMResult(
-            text=payload["choices"][0]["message"].get("content") or "",
-            model=payload.get("model", s.model),
-            tokens_in=int(usage.get("prompt_tokens", 0)),
-            tokens_out=int(usage.get("completion_tokens", 0)),
-            tokens_cached=int(cached),
-            latency_s=latency,
-            limits=limits,
-        )
 
 
 class FakeClient(OpenAICompatClient):
