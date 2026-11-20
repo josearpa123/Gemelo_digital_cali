@@ -126,6 +126,11 @@ No restaura una simulación que estuviera a mitad de episodio.
 
 ## Experimento con varias semillas de entrenamiento
 
+Para ejecutar todo el protocolo con instantánea, selección fijada antes del test y
+estado recuperable, véase [experimento de cooperación](cooperation-experiment.md).
+El lanzador `bash scripts/run_experiment.sh IDENTIFICADOR` ejecuta las seis corridas,
+valida, fija un candidato si cumple los criterios y prueba solo ese candidato.
+
 ```bash
 docker compose --profile train run -d --name experiment_cooperation \
   -e GIT_COMMIT="$(git rev-parse --short HEAD)" \
@@ -135,8 +140,8 @@ docker compose --profile train run -d --name experiment_cooperation \
 ```
 
 Ejecuta seis entrenamientos secuenciales y después evalúa todos con las mismas
-semillas de validación. No se lanzó automáticamente este experimento adicional:
-consume seis veces el presupuesto de una corrida individual. El reporte conserva
+semillas de validación. Consume seis veces el presupuesto de una corrida individual.
+Sin `--final-test` se detiene después de seleccionar con validación. El reporte conserva
 cada modelo por separado. Para conclusiones sobre alpha, considere la variación
 entre semillas de entrenamiento, además de la variación de demanda.
 

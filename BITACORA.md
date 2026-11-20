@@ -4,6 +4,64 @@ Registro de qué se hizo y qué sigue. La entrada más reciente va primero. El h
 
 Formato: `## <fecha> · <autor> · <rama>`, luego `HEAD`, **Hecho**, **Siguiente** y **Bloqueos**.
 
+## 2026-11-19 · Milton (con Codex) · protocolo de cooperación multisemilla
+
+HEAD base `57f87e4` · rama `feat/h1-milton-issues`.
+
+**Hecho**
+- Subidos el modelo visible y el acceso directo (commit `57f87e4`).
+- Protocolo de seis PPO (alpha 0/0,3 × semillas 0/1/2), 3M por corrida, mezcla
+  pico/valle/evento y dos entornos. Estado persistente y reutilización de modelos
+  completados en caso de reinicio.
+- Lanzador con código y datos congelados, revisión Git e imagen registradas,
+  sin secretos. Validación 200–204 antes de fijar modelo por regla predeclarada;
+  solo ese candidato puede consumir la prueba final 300–304.
+- Sin candidato elegible, no se ejecuta la prueba final. El modelo activo del
+  panel no se reemplaza automáticamente.
+- Verificación: Ruff aprobado; suite rápida 190 passed, 1 skipped (LLM real),
+  2 deselected (`outputs/verification/cooperation-protocol-20261119-tests.log`).
+- Documentación en `docs/cooperation-experiment.md`.
+- Experimento iniciado como `experiment_cooperation_20261119`, con la primera
+  combinación alpha 0 / semilla 0 avanzando. Código, escenarios y configuración
+  verificados de solo lectura en Docker; modelos y salidas permanecen escribibles.
+- Se corrigió el lanzador para declarar montajes explícitos con `docker run`.
+  Un arranque de comprobación se interrumpió antes de completar la primera corrida
+  al detectar permisos heredados de Compose; se conservó como contenedor `_setup`
+  y se reinició sobre la misma instantánea, sin usar evaluaciones para decidirlo.
+
+**Siguiente**
+- Seguir el progreso de `cooperation_20261119` en
+  `outputs/evaluations/cooperation_20261119/experiment.json` y logs del contenedor
+  `experiment_cooperation_20261119`. Publicar números solo después de las corridas.
+
+**Bloqueos / límites**
+- Varias horas de cómputo: mantener Windows sin suspensión y WSL activo.
+- Demanda sintética; la calibración de campo y los peatones siguen pendientes.
+
+## 2026-11-19 · Milton (con Codex) · feat/h1-milton-issues
+
+HEAD base `1b3b245`.
+
+**Hecho**
+- `models/current` apunta al PPO cíclico de 3M (`ppo_roosevelt4_a0_s0_20261119-0131`);
+  el artefacto anterior se conserva. Modelo nuevo cargado y estrategia RL activada.
+- El panel muestra identificador real, 3.000.320 pasos guardados, alpha y señal;
+  distingue modelo en uso de modelo preparado.
+- Acceso directo “Gemelo digital Cali” instalado en el escritorio de Windows:
+  arranca WSL/Docker, espera la conexión desde Windows, abre navegador y mantiene
+  WSL activo siguiendo los logs en una ventana que debe permanecer abierta.
+- Documentación en `docs/local-panel.md`. Verificación: 184 passed en suite rápida,
+  1 skipped (LLM real), 2 deselected (`outputs/verification/panel-20261119-tests.log`);
+  Chromium aprobó selección y versión real sin errores JavaScript
+  (`outputs/verification/model-selected-20261119.json`). Lanzador y acceso real probados.
+
+**Siguiente**
+- Usar el acceso directo para iniciar el panel después de reiniciar Windows.
+
+**Bloqueos / límites**
+- El modelo activado es la corrida anterior al registro de huellas de entrenamiento;
+  su evaluación y limitaciones siguen en `docs/results/validation-20261118/`.
+
 ## 2026-11-18 · Codex · codex/security-hardening
 
 HEAD de implementación `e6c50e4`, sobre la base `14f5aeb`.

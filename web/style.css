@@ -228,6 +228,11 @@ label { color: var(--muted); display: flex; gap: 6px; align-items: center; }
   h1 { white-space: normal; }
 }
 .evaluation-panel select { width: 100%; margin: 6px 0; }
+.model-info { margin: 10px 0; padding: 10px; border: 1px solid var(--line-strong); background: rgba(0, 229, 255, .04); }
+.model-info small, .model-info strong, .model-info span { display: block; }
+.model-info small { color: var(--cyan); margin-bottom: 5px; }
+.model-info strong { overflow-wrap: anywhere; font: 11px var(--mono); line-height: 1.5; }
+.model-info span { margin-top: 6px; color: var(--muted); font-size: 12px; }
 .evaluation-scroll { max-width: 100%; overflow-x: auto; margin: 10px 0; }
 .evaluation-scroll table { border-collapse: collapse; font: 11px var(--mono); width: 100%; }
 .evaluation-scroll th, .evaluation-scroll td { text-align: left; padding: 7px; border-bottom: 1px solid var(--line-strong); white-space: nowrap; }
