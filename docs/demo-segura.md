@@ -24,8 +24,8 @@ backend en loopback cuando proxy y backend estén en el mismo equipo. Configura 
 privado `DEMO_ACCESS=auth`, `DEMO_ORIGIN=https://<dominio-de-demo>` y
 `DEMO_OPERATOR_PASSWORD` con una contraseña aleatoria de al menos 16 caracteres.
 Configura credenciales distintas para `viewer` o `admin` solo si se necesitan. Comparte
-únicamente el acceso de `operator` con el profesor. La autenticación inicial usa Basic sobre
-HTTPS y el panel recibe una cookie de sesión firmada. Usa un perfil privado del navegador para
+únicamente el acceso de `operator` con el profesor. La pantalla de inicio de sesión envía
+las credenciales al mismo origen y el panel recibe una cookie de sesión firmada. Usa un perfil privado del navegador para
 operar con otra cuenta. El origen HTTP en loopback sirve para ensayos en el anfitrión.
 
 ## Recorrido verificable

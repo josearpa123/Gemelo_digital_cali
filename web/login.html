@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Iniciar sesión · Gemelo digital Cali</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&display=swap">
+  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/login.css">
+  <script src="/login.js" defer></script>
+</head>
+<body class="login-page">
+  <div class="scanlines" aria-hidden="true"></div>
+  <main class="login-shell">
+    <section class="login-brand" aria-labelledby="login-brand-title">
+      <div class="login-identity">
+        <svg class="mark" viewBox="0 0 48 48" aria-hidden="true">
+          <polygon points="24,3 43,14 43,34 24,45 5,34 5,14" />
+          <circle cx="24" cy="24" r="7" />
+          <path d="M24 3v10M24 35v10M5 14l9 5M34 29l9 5M43 14l-9 5M14 29l-9 5" />
+        </svg>
+        <div>
+          <p class="login-caption">Centro de mando de movilidad</p>
+          <h1 id="login-brand-title">Gemelo digital <span>· Cali</span></h1>
+        </div>
+      </div>
+      <div class="login-diagram" aria-hidden="true">
+        <i></i><i></i><i></i><i></i>
+      </div>
+      <p class="login-corridor">Av. Roosevelt · Cra 34 a Cra 39</p>
+    </section>
+    <section class="login-card" aria-labelledby="login-title">
+      <h2 id="login-title">Iniciar sesión</h2>
+      <p class="login-intro">Ingresa tus credenciales para abrir el panel.</p>
+      <form method="post" action="/login">
+        <label for="username">Usuario</label>
+        <input id="username" name="username" autocomplete="username" autocapitalize="none"
+               spellcheck="false" maxlength="32" required>
+        <label for="password">Contraseña</label>
+        <div class="login-password">
+          <input id="password" name="password" type="password" autocomplete="current-password"
+                 maxlength="256" required>
+          <button id="show-password" type="button" hidden>Mostrar</button>
+        </div>
+        <p class="login-error" role="alert" id="login-error" hidden></p>
+        <button class="login-submit" type="submit">Entrar al panel <span aria-hidden="true">→</span></button>
+      </form>
+    </section>
+  </main>
+</body>
+</html>

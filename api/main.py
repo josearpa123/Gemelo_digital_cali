@@ -707,6 +707,11 @@ async def ws_state(ws: fastapi.WebSocket):
         state.ws_clients -= 1
 
 
+@app.api_route("/login", methods=["GET", "HEAD"])
+async def login_page():
+    return fastapi.responses.FileResponse(WEB / "login.html")
+
+
 # the panel (web/) on the same origin and port as the API; must be mounted last
 app.include_router(evaluations_router)
 app.mount("/", StaticFiles(directory=WEB, html=True, check_dir=False), name="web")
