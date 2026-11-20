@@ -110,15 +110,15 @@ def main() -> int:
     checks = []
     with sync_playwright() as p:
         browser = p.chromium.launch()
-        credentials = None
-        if password := os.environ.get("DEMO_E2E_PASSWORD"):
-            credentials = {"username": "operator", "password": password}
-        page = browser.new_page(
-            viewport={"width": 1600, "height": 950}, http_credentials=credentials
-        )
+        password = os.environ.get("DEMO_E2E_PASSWORD")
+        page = browser.new_page(viewport={"width": 1600, "height": 950})
         errors = []
         page.on("pageerror", lambda e: errors.append(str(e)))
         page.goto(URL, wait_until="networkidle")
+        if password:
+            page.get_by_label("Usuario").fill("operator")
+            page.get_by_label("Contraseña", exact=True).fill(password)
+            page.get_by_role("button", name="Entrar al panel").click()
         page.wait_for_selector("#strategies button")
         page.select_option("#speed", "20")
         page.wait_for_selector("#conn.on")
@@ -170,7 +170,7 @@ def main() -> int:
         checks.append(("pausa detiene el tiempo", api_state(page)["snapshot"]["t"] == t1))
         page.click("#pause")
         traces_checks(page, checks)
-        if credentials:
+        if password:
             checks.append(("operador sin acceso a la clave", page.locator("#key-open").is_hidden()))
         if os.environ.get("DEMO_E2E_FAKE") == "1":
             before = api_state(page)["snapshot"]["demand"]

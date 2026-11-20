@@ -16,15 +16,14 @@ def main():
     output.mkdir(parents=True, exist_ok=True)
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch()
-        credentials = None
-        if password := os.environ.get("DEMO_E2E_PASSWORD"):
-            credentials = {"username": "operator", "password": password}
-        page = browser.new_page(
-            viewport={"width": 1600, "height": 1000}, http_credentials=credentials
-        )
+        page = browser.new_page(viewport={"width": 1600, "height": 1000})
         errors = []
         page.on("pageerror", lambda error: errors.append(str(error)))
         page.goto(url, wait_until="networkidle")
+        if password := os.environ.get("DEMO_E2E_PASSWORD"):
+            page.get_by_label("Usuario").fill("operator")
+            page.get_by_label("Contraseña", exact=True).fill(password)
+            page.get_by_role("button", name="Entrar al panel").click()
         page.wait_for_selector("#evaluation-results table")
         page.select_option("#evaluation-run", run)
         page.wait_for_selector("#evaluation-results table")

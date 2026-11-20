@@ -17,9 +17,15 @@ def auth_client(monkeypatch):
     return TestClient(main.app, base_url="https://demo.example")
 
 
-def test_anonymous_only_gets_public_health(auth_client):
+def test_anonymous_gets_login_but_no_dashboard_data(auth_client):
     assert auth_client.get("/health").status_code == 200
-    for endpoint in ("/", "/api/network", "/api/traces/export.csv", "/api/evaluations"):
+    page = auth_client.get("/", follow_redirects=False)
+    assert page.status_code == 303 and page.headers["location"] == "/login"
+    form = auth_client.get("/login")
+    assert form.status_code == 200
+    assert 'autocomplete="current-password"' in form.text
+    assert "no-store" in form.headers["cache-control"]
+    for endpoint in ("/api/network", "/api/traces/export.csv", "/api/evaluations"):
         assert auth_client.get(endpoint).status_code == 401
     with pytest.raises(WebSocketDisconnect) as exc:
         with auth_client.websocket_connect("wss://demo.example/ws/state"):
@@ -27,10 +33,29 @@ def test_anonymous_only_gets_public_health(auth_client):
     assert exc.value.code == 1008
 
 
+def test_form_login_issues_session_only_for_valid_same_origin_credentials(auth_client):
+    data = {"username": "viewer", "password": "fake-viewer-password"}
+    rejected = auth_client.post("/login", data=data, headers={"Origin": "https://other.example"})
+    assert rejected.status_code == 403 and "set-cookie" not in rejected.headers
+    origin = {"Origin": "https://demo.example"}
+    wrong = auth_client.post(
+        "/login", data=data | {"password": "wrong"}, headers=origin, follow_redirects=False
+    )
+    assert wrong.headers["location"] == "/login?error=credentials"
+    assert "set-cookie" not in wrong.headers
+    accepted = auth_client.post("/login", data=data, headers=origin, follow_redirects=False)
+    assert accepted.status_code == 303 and accepted.headers["location"] == "/"
+    assert {"HttpOnly", "Secure", "SameSite=Strict"} <= set(
+        part.strip() for part in accepted.headers["set-cookie"].split(";")
+    )
+    assert 'id="conn"' in auth_client.get("/").text
+    assert auth_client.post("/api/control", json={}).status_code == 403
+
+
 def test_roles_and_cross_origin_request(auth_client):
     viewer = ("viewer", "fake-viewer-password")
     operator = ("operator", "fake-operator-password")
-    assert auth_client.get("/", auth=viewer).status_code == 200
+    assert auth_client.get("/app.js", auth=viewer).status_code == 200
     for endpoint in ("/api/control", "/api/assistant/confirm", "/api/faults/arm"):
         assert auth_client.post(endpoint, json={}).status_code == 403
     auth_client.cookies.clear()
@@ -39,7 +64,7 @@ def test_roles_and_cross_origin_request(auth_client):
         "/api/control", json={}, auth=operator, headers={"Origin": "https://untrusted.example"}
     )
     assert response.status_code == 403
-    assert auth_client.get("/", auth=operator).status_code == 200
+    assert auth_client.get("/app.js", auth=operator).status_code == 200
     with pytest.raises(WebSocketDisconnect) as exc:
         with auth_client.websocket_connect(
             "wss://demo.example/ws/state", headers={"Origin": "https://untrusted.example"}

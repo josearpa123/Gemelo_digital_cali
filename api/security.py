@@ -8,24 +8,27 @@ import hmac
 import os
 import secrets
 import time
+from collections import deque
 from http.cookies import CookieError, SimpleCookie
-from urllib.parse import urlsplit
+from urllib.parse import parse_qs, urlsplit
 
 from fastapi import HTTPException
 from starlette.datastructures import Headers
-from starlette.responses import JSONResponse
+from starlette.responses import JSONResponse, RedirectResponse
 
 ROLES = {"viewer": 1, "operator": 2, "admin": 3}
 COOKIE = "gemelo_session"
 SESSION_SECONDS = 8 * 3600
 BODY_LIMIT = 8192
 ADMIN_ROUTES = {"/api/llm/key", "/api/llm/test"}
+LOGIN_ASSETS = {"/style.css", "/login.css", "/login.js"}
 POLICY = (
     "default-src 'self'; script-src 'self' https://unpkg.com https://cdn.jsdelivr.net; "
     "style-src 'self' 'unsafe-inline' https://unpkg.com https://fonts.googleapis.com; "
     "font-src 'self' https://fonts.gstatic.com; img-src 'self' data: "
     "https://unpkg.com https://*.tile.openstreetmap.org; "
-    "connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'"
+    "connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; "
+    "form-action 'self'"
 )
 
 
@@ -50,14 +53,15 @@ class SecurityMiddleware:
     def __init__(self, app):
         self.app = app
         self.signing_key = secrets.token_bytes(32)
+        self.login_attempts: dict[str, deque[float]] = {}
 
     def _signature(self, data: str) -> str:
         return hmac.new(self.signing_key, data.encode(), hashlib.sha256).hexdigest()
 
-    def _session(self, headers):
+    def _session(self, headers, cookie_name):
         try:
             cookie = SimpleCookie(headers.get("cookie", ""))
-            value = cookie[COOKIE].value
+            value = cookie[cookie_name].value
             data, signature = value.rsplit(".", 1)
             session, role, expires = data.split(".")
             if (
@@ -71,15 +75,7 @@ class SecurityMiddleware:
         return None
 
     @staticmethod
-    def _basic_role(headers):
-        try:
-            scheme, value = headers.get("authorization", "").split()
-            if scheme.lower() != "basic":
-                return None
-            role, password = base64.b64decode(value, validate=True).split(b":", 1)
-            role = role.decode("ascii")
-        except (ValueError, UnicodeError, binascii.Error):
-            return None
+    def _role(role: str, password: bytes):
         configured = os.environ.get(f"DEMO_{role.upper()}_PASSWORD") if role in ROLES else None
         if (
             configured
@@ -88,6 +84,43 @@ class SecurityMiddleware:
         ):
             return role
         return None
+
+    def _basic_role(self, headers):
+        try:
+            scheme, value = headers.get("authorization", "").split()
+            if scheme.lower() != "basic":
+                return None
+            role, password = base64.b64decode(value, validate=True).split(b":", 1)
+            role = role.decode("ascii")
+        except (ValueError, UnicodeError, binascii.Error):
+            return None
+        return self._role(role, password)
+
+    def _new_session(self, role, origin, cookie_name):
+        session = (secrets.token_urlsafe(24), role, int(time.time()) + SESSION_SECONDS)
+        data = ".".join(map(str, session))
+        secure = "; Secure" if origin.startswith("https://") else ""
+        cookie = (
+            f"{cookie_name}={data}.{self._signature(data)}; Path=/; "
+            f"Max-Age={SESSION_SECONDS}; HttpOnly; SameSite=Strict{secure}"
+        )
+        return session, cookie
+
+    def _login_allowed(self, client):
+        now = time.monotonic()
+        cutoff = now - 60
+        for key, attempts in list(self.login_attempts.items()):
+            if attempts[-1] <= cutoff:
+                del self.login_attempts[key]
+        if client not in self.login_attempts and len(self.login_attempts) >= 512:
+            return False
+        attempts = self.login_attempts.setdefault(client, deque())
+        while attempts and attempts[0] <= cutoff:
+            attempts.popleft()
+        if len(attempts) >= 8:
+            return False
+        attempts.append(now)
+        return True
 
     async def __call__(self, scope, receive, send):
         kind = scope["type"]
@@ -107,14 +140,15 @@ class SecurityMiddleware:
             hostname = None
         origin = os.environ.get("DEMO_ORIGIN") or f"{scheme}://{host}"
         mutating = kind == "http" and method not in {"GET", "HEAD", "OPTIONS"}
+        login_page = kind == "http" and path == "/login" and method in {"GET", "HEAD"}
+        login_submit = kind == "http" and path == "/login" and method == "POST"
+        login_asset = kind == "http" and path in LOGIN_ASSETS and method in {"GET", "HEAD"}
 
-        async def reject(status, message, challenge=False):
+        async def reject(status, message):
             if kind == "websocket":
                 await send({"type": "websocket.close", "code": 1008})
                 return
             response_headers = {"Cache-Control": "no-store"}
-            if challenge:
-                response_headers["WWW-Authenticate"] = 'Basic realm="Gemelo Digital"'
             await JSONResponse({"detail": message}, status_code=status, headers=response_headers)(
                 scope, receive, send
             )
@@ -133,28 +167,34 @@ class SecurityMiddleware:
                     await reject(403, "Usa el origen HTTPS configurado para la demo")
                     return
         if (mutating or kind == "websocket") and (
-            headers.get("origin", origin) != origin
+            headers.get("origin", "" if login_submit else origin) != origin
             or headers.get("sec-fetch-site") in {"cross-site", "same-site"}
         ):
             await reject(403, "Origen no permitido")
             return
 
-        session = self._session(headers) if not public else None
+        # Browsers share cookies between ports on the same host.
+        cookie_name = f"{COOKIE}_{hashlib.sha256(origin.encode()).hexdigest()[:12]}"
+        session = self._session(headers, cookie_name) if not public else None
         new_cookie = None
-        if not public and not session:
+        if ((local or session) and login_page) or (local and login_submit):
+            await RedirectResponse("/", status_code=303, headers={"Cache-Control": "no-store"})(
+                scope, receive, send
+            )
+            return
+        if not (public or login_page or login_submit or login_asset or session):
+            if not local and kind == "http" and path in {"/", "/index.html"} and not mutating:
+                await RedirectResponse(
+                    "/login", status_code=303, headers={"Cache-Control": "no-store"}
+                )(scope, receive, send)
+                return
             role = "admin" if local else self._basic_role(headers)
             if not role or (not local and kind == "websocket"):
-                await reject(401, "Inicia sesión en el panel", challenge=True)
+                await reject(401, "Inicia sesión en el panel")
                 return
-            session = (secrets.token_urlsafe(24), role, int(time.time()) + SESSION_SECONDS)
-            data = ".".join(map(str, session))
-            secure = "; Secure" if origin.startswith("https://") else ""
-            new_cookie = (
-                f"{COOKIE}={data}.{self._signature(data)}; Path=/; "
-                f"Max-Age={SESSION_SECONDS}; HttpOnly; SameSite=Strict{secure}"
-            )
+            session, new_cookie = self._new_session(role, origin, cookie_name)
 
-        if session:
+        if session and not login_submit:
             scope["gemelo_session"], scope["gemelo_role"], scope["gemelo_expires"] = session
             minimum = (
                 "admin"
@@ -185,6 +225,33 @@ class SecurityMiddleware:
             except TimeoutError:
                 await reject(408, "Tiempo de lectura agotado")
                 return
+            if login_submit:
+                origin_type = headers.get("content-type", "").split(";", 1)[0]
+                if origin_type != "application/x-www-form-urlencoded":
+                    await reject(415, "Formato de inicio de sesión inválido")
+                    return
+                client = (scope.get("client") or ("unknown",))[0]
+                location = "/login?error=limit"
+                if self._login_allowed(client):
+                    try:
+                        fields = parse_qs(body.decode(), strict_parsing=True, max_num_fields=2)
+                        (username,) = fields["username"]
+                        (password,) = fields["password"]
+                        role = self._role(username, password.encode())
+                    except (KeyError, ValueError):
+                        role = None
+                    if role:
+                        _, new_cookie = self._new_session(role, origin, cookie_name)
+                        location = "/"
+                    else:
+                        location = "/login?error=credentials"
+                response_headers = {"Cache-Control": "no-store"}
+                if new_cookie:
+                    response_headers["Set-Cookie"] = new_cookie
+                await RedirectResponse(location, status_code=303, headers=response_headers)(
+                    scope, receive, send
+                )
+                return
             original_receive = receive
             delivered = False
 
@@ -204,7 +271,7 @@ class SecurityMiddleware:
                     (b"referrer-policy", b"strict-origin-when-cross-origin"),
                     (b"content-security-policy", POLICY.encode()),
                 ]
-                if path.startswith("/api/") or new_cookie or path in {"/", "/index.html"}:
+                if path.startswith("/api/") or new_cookie or path in {"/", "/index.html", "/login"}:
                     extra.append((b"cache-control", b"no-store"))
                 if new_cookie:
                     extra.append((b"set-cookie", new_cookie.encode()))
