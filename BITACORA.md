@@ -4,6 +4,29 @@ Registro de qué se hizo y qué sigue. La entrada más reciente va primero. El h
 
 Formato: `## <fecha> · <autor> · <rama>`, luego `HEAD`, **Hecho**, **Siguiente** y **Bloqueos**.
 
+## 2026-11-19 · Milton (con Codex) · informe académico APA
+
+HEAD base `c3916d2` · rama `feat/h1-milton-issues`.
+
+**Hecho**
+- Experimento de cooperación completado: seis entrenamientos, 120 corridas de
+  validación y 45 de prueba final; selección congelada antes de consultar test.
+- Informe de 20 páginas en APA 7 con portada institucional suministrada por Milton,
+  autores Milton Alberto Quintero Estrada y Jose David Arias Pantoja.
+- PDF, Word, anexos y control de calidad en `docs/reports/20261119/`.
+- Generadores y validadores del informe en `scripts/`; fuentes numéricas en los
+  anexos. Reducción pareada en pico: 66,5 % frente a fijo y 19,2 % frente a
+  max-pressure. No se demuestra ventaja en valle frente a max-pressure.
+- Revisiones: Ruff aprobado y verificación documental de autores, carta,
+  márgenes de una pulgada, 20 páginas sin hojas vacías ni texto recortado.
+
+**Siguiente**
+- Milton y Jose: revisar el informe para la entrega y reunir aforos reales.
+
+**Bloqueos / límites**
+- Demanda sintética; calibración de campo y peatones pendientes.
+- El informe no promueve automáticamente un nuevo modelo al panel.
+
 ## 2026-11-19 · Milton (con Codex) · protocolo de cooperación multisemilla
 
 HEAD base `57f87e4` · rama `feat/h1-milton-issues`.

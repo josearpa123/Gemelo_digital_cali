@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="author" content="Milton Alberto Quintero Estrada; Jose David Arias Pantoja">
+<title>Gemelo digital de movilidad urbana en Cali</title>
+<style>
+@page { size: A4; margin: 22mm 22mm 21mm; }
+* { box-sizing: border-box; }
+body { margin: 0; color: #172735; font-family: Arial, Helvetica, sans-serif; font-size: 10.5pt; line-height: 1.35; }
+p { margin: 0 0 9pt; text-align: justify; orphans: 3; widows: 3; }
+h1 { color: #163e55; font-size: 17pt; line-height: 1.2; margin: 20pt 0 11pt; break-after: avoid; }
+h2 { color: #1d596b; font-size: 12pt; margin: 15pt 0 7pt; break-after: avoid; }
+h3 { color: #263f4b; font-size: 10.7pt; margin: 12pt 0 6pt; break-after: avoid; }
+ul, ol { margin-top: 5pt; padding-left: 19pt; }
+li { margin-bottom: 4pt; }
+a { color: #15586a; text-decoration: none; }
+.cover { min-height: 245mm; display: flex; flex-direction: column; justify-content: space-between; text-align: center; break-after: page; padding: 20mm 1mm 12mm; }
+.cover p { text-align: center; }
+.eyebrow { color: #46616e; font-size: 10pt; letter-spacing: 2px; margin-bottom: 18mm; }
+.cover-title { color: #163e55; font-size: 29pt; font-weight: 700; line-height: 1.18; margin-bottom: 9mm; }
+.subtitle { color: #355564; font-size: 15pt; line-height: 1.4; }
+.authors { font-size: 13pt; font-weight: 700; line-height: 1.8; }
+.cover-bottom { font-size: 11pt; color: #46616e; }
+.docx-break { display: none; }
+.start-page { break-before: auto; }
+.chapter-break { break-before: page; }
+.abstract { padding: 12pt 14pt; background: #f1f6f7; border-left: 3pt solid #1b6574; }
+.abstract p { margin-bottom: 0; }
+.keywords { font-size: 9.5pt; color: #425b68; margin-top: 9pt; }
+.contents { columns: 2; column-gap: 20pt; }
+.contents p { text-align: left; font-size: 10pt; margin-bottom: 6pt; }
+table { width: 100%; border-collapse: collapse; font-size: 9pt; margin: 8pt 0 7pt; break-inside: avoid; }
+thead { display: table-header-group; }
+tr { break-inside: avoid; }
+th { background: #163e55; color: white; padding: 6pt 6pt; font-weight: 700; text-align: left; vertical-align: middle; }
+td { border-bottom: 0.6pt solid #d9e2e6; padding: 5pt 6pt; vertical-align: top; }
+tbody tr:nth-child(even) { background: #f3f6f7; }
+.num { text-align: right; white-space: nowrap; }
+.caption { color: #3d5663; font-size: 9pt; margin: 10pt 0 4pt; text-align: left; break-after: avoid; }
+.note { color: #4d626d; font-size: 9pt; line-height: 1.35; text-align: left; }
+figure { margin: 12pt 0 13pt; break-inside: avoid; }
+figure img { width: 100%; height: auto; display: block; margin: 0 auto 6pt; }
+figcaption { color: #3d5663; font-size: 9pt; line-height: 1.35; text-align: left; }
+.map img { width: auto; max-width: 100%; max-height: 165mm; }
+.formula { margin: 10pt 0; padding: 8pt 11pt; background: #f2f5f6; text-align: center; font-size: 10.5pt; break-inside: avoid; }
+.result { padding: 10pt 12pt; border: 1pt solid #bfd8da; background: #f3f9f8; margin: 10pt 0; }
+.result p { margin-bottom: 0; }
+.refs p { font-size: 9.1pt; text-align: left; margin-bottom: 9pt; overflow-wrap: anywhere; }
+code { font-family: Consolas, monospace; font-size: 8.5pt; overflow-wrap: anywhere; }
+.appendix td { font-size: 8.5pt; overflow-wrap: anywhere; }
+</style>
+</head>
+<body>
+<section class="cover">
+  <div>
+    <p class="eyebrow">INFORME TÉCNICO ACADÉMICO</p>
+    <p class="cover-title">Gemelo digital de movilidad urbana en Cali</p>
+    <p class="subtitle">Diseño y evaluación de control semafórico multiagente<br>mediante aprendizaje por refuerzo con PPO</p>
+  </div>
+  <div>
+    <p class="note" style="text-align:center">Autores</p>
+    <p class="authors">Milton Alberto Quintero Estrada<br>Jose David Arias Pantoja</p>
+    {{academic_details}}
+  </div>
+  <div class="cover-bottom"><p>Cali, Colombia<br>19 de noviembre de 2026</p></div>
+</section>
+<p class="docx-break">[[PAGEBREAK]]</p>
+
+<h1>Resumen</h1>
+<div class="abstract"><p>Se desarrolló un prototipo de gemelo digital para estudiar el control de cuatro intersecciones de la avenida Roosevelt de Cali mediante simulación microscópica. La red procede de OpenStreetMap y se ejecuta en SUMO; una política PPO con parámetros compartidos permite que cada semáforo decida mantener o avanzar su fase verde. Se compararon recompensas locales y coordinadas mediante seis entrenamientos, con tres semillas por configuración y demanda sintética de pico, valle e incidente. La selección utilizó exclusivamente cinco semillas de validación y precedió a una prueba final con cinco semillas diferentes. El modelo elegido, con α = 0 y semilla de entrenamiento 2, redujo la espera media en pico un <strong>{{peak_fixed_reduction}}</strong> frente a tiempo fijo y un <strong>{{peak_mp_reduction}}</strong> frente a max-pressure. En valle, la diferencia respecto de max-pressure fue pequeña y su intervalo incluyó cero. Las dos familias de recompensa obtuvieron resultados cercanos; no se demuestra una superioridad general de la cooperación. El objetivo de reducir al menos 15 % la espera frente a tiempo fijo se cumplió en el escenario de prueba de pico, dentro de las condiciones de simulación utilizadas.</p></div>
+<p class="keywords"><strong>Palabras clave:</strong> movilidad urbana, SUMO, control semafórico, aprendizaje por refuerzo, PPO, evaluación reproducible.</p>
+
+<h1>Contenido</h1>
+<div class="contents">
+<p>1. Introducción y objetivos</p><p>2. Corredor y alcance de la simulación</p>
+<p>3. Arquitectura y agentes de control</p><p>4. Metodología experimental</p>
+<p>5. Comparación de las configuraciones</p><p>6. Resultados de la prueba final</p>
+<p>7. Panel, trazabilidad y verificación</p><p>8. Limitaciones y trabajo futuro</p>
+<p>9. Conclusiones</p><p>10. Referencias</p><p>Anexo. Evidencia y reproducibilidad</p>
+</div>
+<p class="note">Las magnitudes reportadas corresponden a ejecuciones del simulador. El prototipo no está conectado a sensores de tráfico ni controla infraestructura vial real.</p>
+
+<section class="start-page chapter-break">
+<h1>1. Introducción y objetivos</h1>
+<p>La coordinación de los semáforos influye en los tiempos de espera y en la distribución de las colas de una red urbana. Un programa fijo ofrece una referencia reproducible, pero no adapta sus decisiones a la congestión observada. Los controladores adaptativos y el aprendizaje por refuerzo permiten estudiar decisiones dependientes del estado del tráfico. Esta comparación debe hacerse sobre la misma red y demanda, para atribuir las diferencias al controlador y no a variaciones entre los escenarios.</p>
+<p>El proyecto construye un entorno de experimentación de un corredor real de Cali. SUMO permite representar vehículos individuales y su interacción con señales y carriles <a href="#ref-sumo">[1]</a>. Sobre ese entorno se implementaron tres estrategias: tiempo fijo, max-pressure y una política PPO compartida por los agentes semafóricos. El término gemelo digital se utiliza aquí para describir un prototipo georreferenciado de simulación y experimentación; todavía no representa una réplica operacional calibrada mediante observaciones de campo.</p>
+<h2>1.1 Objetivo general</h2>
+<p>Desarrollar y evaluar un prototipo de control semafórico multiagente para un corredor vial de Cali, comparando su desempeño con tiempo fijo y max-pressure bajo condiciones reproducibles de demanda.</p>
+<h2>1.2 Objetivos específicos</h2>
+<ol>
+<li>Representar cuatro intersecciones semaforizadas del corredor con geometría procedente de OpenStreetMap y conservar su georreferenciación.</li>
+<li>Generar escenarios sintéticos de valle, pico e incidente con carros y motocicletas.</li>
+<li>Implementar agentes PPO que respeten la secuencia de fases y comparar recompensas con α = 0 y α = 0,3.</li>
+<li>Separar entrenamiento, validación y prueba final, y medir espera, tiempo de viaje, colas y equidad.</li>
+<li>Comprobar el objetivo de al menos 15 % menos espera media que tiempo fijo en hora pico y presentar los resultados en un panel con trazabilidad.</li>
+</ol>
+<p>La extensión a seis o más intersecciones, la generación de demanda peatonal y la calibración con aforos reales permanecen como trabajo posterior. No se consideran implementadas por el solo hecho de estar contempladas en el plan original.</p>
+</section>
+
+<section class="start-page chapter-break">
+<h1>2. Corredor y alcance de la simulación</h1>
+<p>El escenario <em>roosevelt4</em> representa la avenida Roosevelt, identificada como Calle 6, entre las carreras 34 y 39. Incluye cuatro grupos semafóricos que actúan como agentes. La geometría se importa desde OpenStreetMap y se procesa con netconvert. Los datos cartográficos se atribuyen a sus colaboradores conforme a su licencia <a href="#ref-osm">[5]</a>.</p>
+<figure class="map"><img src="figures/corredor.png" width="420" alt="Red SUMO de la avenida Roosevelt con cuatro intersecciones sobre cartografía de OpenStreetMap"><figcaption><strong>Figura 1.</strong> Vista georreferenciada del corredor utilizado como base del prototipo. Fuente: imagen del repositorio <code>docs/img/roosevelt4_sumo.png</code>. Cartografía © colaboradores de OpenStreetMap. La imagen ilustra el escenario; no constituye una medición de tráfico real.</figcaption></figure>
+<p>La referencia fija utiliza un programa de diseño de 90 s: 50 s de verde para el corredor, 30 s para la vía transversal, dos amarillos de 3 s y dos despejes de 2 s. Estos valores no proceden de mediciones de campo. La política RL modifica la duración de los verdes respetando el orden de fases; por ello su ciclo efectivo puede variar.</p>
+</section>
+
+<h1>3. Arquitectura y agentes de control</h1>
+<p>La solución separa la simulación, el entrenamiento por lotes, la evaluación y la interfaz. El simulador aporta observaciones a los controladores mediante TraCI/libsumo. FastAPI publica estado, controles y trazas; el navegador muestra el mapa y las comparaciones. Docker facilita ejecutar las mismas dependencias sin instalar SUMO en el sistema anfitrión.</p>
+<figure><img src="figures/arquitectura.png" width="600" alt="Arquitectura del proyecto con red, simulación, entrenamiento, evaluación y panel"><figcaption><strong>Figura 2.</strong> Flujo de datos y responsabilidades del prototipo. Elaboración propia a partir de la implementación del proyecto.</figcaption></figure>
+<h2>3.1 Observación y acción</h2>
+<p>Cada semáforo observa la fase actual, el cumplimiento del verde mínimo, el tiempo en fase, la densidad y la cola por carril de entrada, y colas agregadas de hasta cuatro intersecciones vecinas. La decisión se toma cada 5 s simulados. Las acciones son <em>mantener</em> o <em>avanzar</em> el verde actual, sin saltar arbitrariamente entre verdes.</p>
+<p>El controlador cíclico conserva los amarillos y despejes del programa. El verde mínimo es de 10 s o el programado si resulta menor, y el verde máximo es de 60 s. Estas restricciones pertenecen al simulador y al controlador implementado; no constituyen una certificación de seguridad para infraestructura vial real.</p>
+<h2>3.2 Aprendizaje y recompensa</h2>
+<p>Se emplea PPO, un algoritmo que utiliza un objetivo recortado para moderar las actualizaciones de la política <a href="#ref-ppo">[2]</a>. La implementación utiliza Stable-Baselines3 <a href="#ref-sb3">[3]</a> sobre el entorno multiagente de sumo-rl, adaptado con PettingZoo y SuperSuit <a href="#ref-sumorl">[6]</a>. Los cuatro agentes comparten parámetros de la red neuronal.</p>
+<p>La recompensa local combina la disminución de espera acumulada con un término de presión, conforme al código del proyecto:</p>
+<p class="formula">r<sub>i</sub>(t) = [W<sub>i</sub>(t − Δt) − W<sub>i</sub>(t)] / 100<br>+ 0,05 · [N<sub>salida,i</sub>(t) − N<sub>entrada,i</sub>(t)]</p>
+<p>W representa la espera acumulada usada por sumo-rl y N el número de vehículos en los carriles correspondientes. La recompensa utilizada para entrenar es:</p>
+<p class="formula">r̂<sub>i</sub>(t) = r<sub>i</sub>(t) + α · media(r<sub>j</sub>(t)), para j vecino de i.</p>
+<p>Con α = 0, la recompensa es local. Con α = 0,3, incluye el desempeño de vecinos. <strong>Ambas configuraciones observan las colas vecinas y comparten parámetros</strong>; el experimento aísla el cambio de cooperación en la recompensa, no compara un agente completamente aislado con uno comunicado.</p>
+<p class="caption"><strong>Tabla 1.</strong> Parámetros comunes de entrenamiento.</p>
+{{hyperparameters_table}}
+<p class="note">La unidad «paso» corresponde a una transición acumulada del entorno vectorizado; no equivale a un segundo simulado. PPO completa rollouts, de modo que el total real supera ligeramente los tres millones solicitados.</p>
+
+<section class="start-page">
+<h1>4. Metodología experimental</h1>
+<h2>4.1 Demanda y escenarios</h2>
+<p>La demanda se genera con semillas explícitas y rutas calculadas con duarouter. Las tasas nominales son 1300 vehículos/h en pico y evento, y 550 vehículos/h en valle. El generador utiliza una proporción nominal de motocicletas de 35 %; los conteos realizados pueden variar entre archivos y tras el enrutado. Son parámetros sintéticos, no aforos observados en Cali.</p>
+<p>El escenario de evento conserva la demanda nominal de pico y cierra un carril entre los segundos 900 y 2100 del episodio, equivalentes a los minutos 15 a 35. El cierre restringe el carril a vehículos de tipo <em>authority</em> y limita su velocidad a 1 m/s; al finalizar se restauran sus condiciones. Cada episodio dura 3600 s.</p>
+<p class="caption"><strong>Tabla 2.</strong> Particiones de demanda utilizadas en el experimento.</p>
+{{splits_table}}
+<p>Las semillas históricas 0–4 se mantienen en el repositorio para otras comparaciones, pero no se emplearon como prueba final de este experimento. La semilla de entrenamiento 0, 1 o 2 controla la inicialización y el proceso de aprendizaje; es distinta de la semilla que identifica un archivo de demanda.</p>
+<h2>4.2 Comparación de las configuraciones</h2>
+<p>Se realizaron seis entrenamientos: dos valores de α por tres semillas. Todos utilizaron la misma red y mezcla de escenarios. El presupuesto real fue de <strong>{{total_steps}} transiciones</strong> entre las seis corridas. La ejecución secuencial evitó ejecutar varios entrenamientos completos simultáneamente.</p>
+<p>Después se evaluaron los seis modelos y las dos referencias con las mismas cinco semillas de validación, en tres escenarios: 8 estrategias × 5 semillas × 3 escenarios = <strong>120 simulaciones de evaluación</strong>. La unidad de repetición es la semilla de demanda, no cada vehículo individual.</p>
+<h2>4.3 Selección anterior a la prueba final</h2>
+<p>La regla quedó escrita antes de evaluar. Un candidato debía reducir al menos 15 % la espera emparejada de pico frente a tiempo fijo, no aumentar los teletransportes medios y conservar al menos 99 % de los viajes completados de la referencia fija en cada escenario. Entre candidatos elegibles se minimizó:</p>
+<p class="formula">S = (1/3) · Σ<sub>escenario</sub> [espera media RL / espera media fija].</p>
+<p>Los escenarios tienen igual peso; un score menor es mejor. La selección fijó el modelo y las huellas SHA-256 del artefacto, su configuración y el reporte de validación. Solo después se ejecutó la prueba final con semillas 300–304. El resultado de esa prueba no se utilizó para elegir otro candidato.</p>
+<h2>4.4 Métricas y tratamiento estadístico</h2>
+<p>Se midieron espera media por viaje, duración del viaje, percentil 95 de espera, colas por acceso, viajes completados y teletransportes. Para describir la distribución de espera entre accesos se utilizó el índice de Jain <a href="#ref-jain">[4]</a>:</p>
+<p class="formula">J(x) = (Σ x<sub>k</sub>)² / [n · Σ x<sub>k</sub>²].</p>
+<p>En esta aplicación, x es la espera media por vehículo en cada acceso utilizado. Un valor más cercano a 1 expresa mayor igualdad entre accesos, pero no implica baja espera. La eficiencia y la equidad se interpretan de forma conjunta.</p>
+<p>Las tablas presentan media ± desviación estándar entre cinco semillas de demanda. La reducción de espera se calcula por pares con la misma semilla: (espera de referencia − espera RL) / espera de referencia. Los intervalos del 95 % se obtienen por bootstrap sobre esas cinco reducciones, con 10.000 remuestreos. La media de reducciones no es necesariamente el cociente de las medias de espera.</p>
+</section>
+
+<section class="start-page">
+<h1>5. Comparación de las configuraciones</h1>
+<p>Los seis modelos cumplieron los criterios de elegibilidad de validación. La tabla siguiente muestra el desempeño individual según el score predefinido. El número de pasos es el efectivamente guardado por PPO, y la duración corresponde a cada entrenamiento, no a su evaluación posterior.</p>
+<p class="caption"><strong>Tabla 3.</strong> Corridas de entrenamiento y selección mediante validación.</p>
+{{runs_table}}
+<p class="caption"><strong>Tabla 4.</strong> Score de validación agrupado por configuración de recompensa.</p>
+{{families_table}}
+<p>La familia α = 0,3 obtuvo un score medio ligeramente menor y una dispersión menor entre sus tres semillas. La diferencia relativa entre scores medios fue aproximadamente <strong>{{family_difference}}</strong>. Es una diferencia descriptiva pequeña; con tres entrenamientos por familia y sin una prueba de hipótesis específica, no se establece una superioridad general de la cooperación.</p>
+<p>El mejor candidato individual fue <strong>α = 0, semilla 2</strong>, con score {{selected_score}}. Esto no contradice el promedio de la otra familia: la regla elige un artefacto individual para la prueba final, mientras que la comparación entre familias resume tres artefactos por configuración.</p>
+</section>
+
+<section class="start-page chapter-break">
+<h1>6. Resultados de la prueba final</h1>
+<p>El modelo fijado se comparó con tiempo fijo y max-pressure en cinco semillas finales, nunca utilizadas para seleccionarlo. El diseño comprende 3 estrategias × 3 escenarios × 5 semillas = <strong>45 simulaciones de una hora</strong>. Junto con la validación, se completaron 165 simulaciones de evaluación.</p>
+<h2>6.1 Espera media y objetivo principal</h2>
+<p class="caption"><strong>Tabla 5.</strong> Espera media por viaje en la prueba final, en segundos.</p>
+{{wait_table}}
+<p class="note">Media ± desviación estándar entre cinco semillas. Se incluyen en tripinfo los vehículos todavía circulando al cerrar el episodio; su espera posterior no se conoce.</p>
+<figure><img src="figures/espera_final.png" width="600" alt="Espera media final de las tres estrategias en pico, valle y evento"><figcaption><strong>Figura 3.</strong> Espera media en las semillas de prueba final. Las barras de error representan desviación entre semillas, no intervalos de confianza.</figcaption></figure>
+<p class="caption"><strong>Tabla 6.</strong> Reducción emparejada de espera del modelo PPO y su IC del 95 %.</p>
+{{reductions_table}}
+<div class="result"><p><strong>Resultado principal.</strong> En pico, PPO redujo la espera media {{peak_fixed_reduction}} frente a tiempo fijo, con IC 95 % {{peak_fixed_ci}}. El objetivo de reducción de al menos 15 % se cumplió dentro de este escenario sintético de prueba.</p></div>
+<p>En pico y evento, los intervalos de la reducción respecto de max-pressure fueron positivos. En valle, la reducción media frente a max-pressure fue {{valley_mp_reduction}}, con IC 95 % {{valley_mp_ci}}: el intervalo incluye cero. Por tanto, esta prueba no demuestra una ventaja de espera media sobre max-pressure en valle.</p>
+<figure><img src="figures/reducciones_finales.png" width="600" alt="Intervalos de reducción de espera frente a tiempo fijo y max-pressure"><figcaption><strong>Figura 4.</strong> Reducciones e intervalos bootstrap del 95 %. Una reducción positiva favorece a PPO. En valle, el intervalo frente a max-pressure cruza cero.</figcaption></figure>
+<h2>6.2 Tiempo de viaje</h2>
+<p class="caption"><strong>Tabla 7.</strong> Tiempo de viaje medio por estrategia, en segundos.</p>
+{{travel_table}}
+<p>En pico, el tiempo de viaje medio pasó de {{peak_fixed_travel}} s con fijo a {{peak_rl_travel}} s con PPO. El resultado acompaña la reducción de espera; no debe interpretarse como un pronóstico del tiempo de viaje real de la ciudad, debido al carácter sintético de la demanda y al horizonte limitado de la red.</p>
+<h2>6.3 Equidad y métricas complementarias</h2>
+<p class="caption"><strong>Tabla 8.</strong> Índice de Jain de la espera por acceso en la prueba final.</p>
+{{fairness_table}}
+<p>PPO presenta un índice de Jain mayor que tiempo fijo en los tres escenarios. Frente a max-pressure, la equidad es menor en pico y valle, y mayor en evento. La política elegida por espera media no domina todas las métricas: esa compensación debe mantenerse visible al decidir su uso.</p>
+<p class="caption"><strong>Tabla 9.</strong> Métricas complementarias del PPO seleccionado.</p>
+{{support_table}}
+<p class="note">El P95 es la media de los percentiles obtenidos por semilla. La cola máxima es el máximo por acceso durante cada corrida, promediado entre semillas. Los viajes completados también son medias, por eso pueden tener decimales. No hubo teletransportes en las 45 simulaciones finales.</p>
+</section>
+
+<h1>7. Panel, trazabilidad y verificación</h1>
+<p>El panel permite seleccionar estrategia, pausar, modificar la velocidad de simulación, reiniciar con el mismo tráfico e introducir un incidente. Muestra vehículos y señales sobre el mapa, gráficas de espera y cola, y reportes de evaluaciones completadas. La versión del modelo y sus pasos de entrenamiento se presentan para identificar el artefacto preparado o en uso.</p>
+<p>La trazabilidad registra decisiones RL, cambios de estrategia, incidentes y episodios de entrenamiento. El asistente de lenguaje consulta información acotada y propone acciones validadas; no sustituye la política PPO en el control de los semáforos. Las operaciones mutantes del asistente requieren confirmación, y el servidor distingue roles de lectura, operación y administración.</p>
+<p>Antes de lanzar el experimento se verificaron <strong>190 pruebas rápidas</strong>, con una prueba omitida por requerir una llamada real al proveedor LLM y dos pruebas deseleccionadas. Se comprobaron, entre otros aspectos, separación de semillas, huellas de red, selección sin usar el test, detección de cambios del modelo fijado y reinicio sin repetir corridas completadas. Estas pruebas apoyan la consistencia del software; no constituyen validación de campo ni certificación de seguridad vial.</p>
+<p>La ejecución guardó el código y los escenarios usados por los entrenamientos y evaluaciones en una instantánea. Los modelos almacenan configuración, pasos reales y procedencia. La selección quedó registrada antes del inicio de la prueba final y el contenedor terminó con código 0.</p>
+
+<section class="start-page">
+<h1>8. Limitaciones y trabajo futuro</h1>
+<ul>
+<li><strong>Calibración pendiente.</strong> La geometría se basa en calles reales, pero los flujos, la proporción de motos y el programa fijo son parámetros de diseño. Se requieren aforos, reparto de giros y tiempos semafóricos observados para atribuir representatividad operacional al prototipo.</li>
+<li><strong>Escala y modos.</strong> Se evaluaron cuatro intersecciones con carros y motos. La red contiene cruces peatonales, pero el generador no crea demanda peatonal; no se presentan resultados sobre espera de peatones.</li>
+<li><strong>Muestra limitada.</strong> Se usaron tres semillas de entrenamiento por familia y cinco semillas finales. Los intervalos describen variación entre esas demandas y no toda la incertidumbre sobre días, tasas o comportamientos posibles.</li>
+<li><strong>Viajes censurados.</strong> Al cerrar a 3600 s, se desconoce la espera futura de los vehículos sin terminar. Las métricas de tripinfo tampoco representan necesariamente todos los vehículos programados que aún no lograron insertarse.</li>
+<li><strong>Equidad.</strong> Una espera global menor puede coexistir con una distribución menos uniforme entre accesos. La selección no impone una cota de rojo máximo por persona ni un umbral de Jain.</li>
+<li><strong>Rendimiento del trazado.</strong> La meta de sobrecosto de trazabilidad ≤5 % continúa como pendiente de optimización; no se deduce su cumplimiento del resultado funcional de la suite rápida.</li>
+<li><strong>Despliegue.</strong> La prueba por lotes y la aplicación interactiva son componentes distintos. El experimento no cambia automáticamente el modelo activo del panel y no controla semáforos físicos.</li>
+</ul>
+<p>La siguiente fase debería calibrar el corredor con datos de campo, incorporar peatones, ampliar la red, estudiar restricciones explícitas de equidad y repetir el protocolo con más semillas. Estas extensiones requieren nuevos experimentos; no se presentan como mejoras ya demostradas.</p>
+
+<h1>9. Conclusiones</h1>
+<p>Se implementó un prototipo reproducible de simulación y control semafórico sobre cuatro intersecciones de la avenida Roosevelt. La integración de SUMO, PPO, evaluación por semillas y panel web permite observar decisiones y comparar estrategias sobre el mismo tráfico.</p>
+<p>El modelo seleccionado cumplió el objetivo principal en la prueba final de pico: redujo la espera {{peak_fixed_reduction}} frente a tiempo fijo. También obtuvo una reducción de {{peak_mp_reduction}} respecto de max-pressure en ese escenario. En valle, el desempeño de espera media fue muy próximo al de max-pressure, por lo que no se afirma una mejora significativa frente a esa referencia.</p>
+<p>La cooperación en la recompensa produjo una ligera mejora descriptiva del score medio de su familia, pero el mejor candidato individual perteneció a α = 0. El resultado aconseja mantener separadas la elección de un artefacto y la conclusión sobre una familia de algoritmos. No se demuestra que aumentar α mejore de forma general el control.</p>
+<p>La separación de entrenamiento, validación y prueba final, junto con la selección fijada antes del test, refuerza la trazabilidad de las conclusiones. Los resultados sustentan el potencial del enfoque en las condiciones simuladas; su transferencia a la movilidad real de Cali exige calibración y validación adicionales.</p>
+</section>
+
+<section class="start-page chapter-break refs">
+<h1>10. Referencias</h1>
+<p id="ref-sumo">[1] Alvarez Lopez, P., et al. (2018). <em>Microscopic Traffic Simulation using SUMO</em>. IEEE Intelligent Transportation Systems Conference. <a href="https://doi.org/10.1109/ITSC.2018.8569938">https://doi.org/10.1109/ITSC.2018.8569938</a></p>
+<p id="ref-ppo">[2] Schulman, J., et al. (2017). <em>Proximal Policy Optimization Algorithms</em>. arXiv:1707.06347. <a href="https://arxiv.org/abs/1707.06347">https://arxiv.org/abs/1707.06347</a></p>
+<p id="ref-sb3">[3] Raffin, A., et al. (2021). <em>Stable-Baselines3: Reliable Reinforcement Learning Implementations</em>. Journal of Machine Learning Research, 22(268), 1–8. <a href="https://www.jmlr.org/papers/v22/20-1364.html">https://www.jmlr.org/papers/v22/20-1364.html</a></p>
+<p id="ref-jain">[4] Jain, R., et al. (1984). <em>A Quantitative Measure of Fairness and Discrimination for Resource Allocation in Shared Computer Systems</em>. DEC Research Report TR-301. <a href="https://www.cs.wustl.edu/~jain/papers/ftp/fairness.pdf">https://www.cs.wustl.edu/~jain/papers/ftp/fairness.pdf</a></p>
+<p id="ref-osm">[5] Colaboradores de OpenStreetMap. <em>Copyright and License</em>. <a href="https://www.openstreetmap.org/copyright">https://www.openstreetmap.org/copyright</a></p>
+<p id="ref-sumorl">[6] Alegre, L. N. (2019). <em>SUMO-RL</em>. Repositorio GitHub. <a href="https://github.com/LucasAlegre/sumo-rl">https://github.com/LucasAlegre/sumo-rl</a></p>
+<p id="ref-project">[7] Quintero Estrada, M. A., y Arias Pantoja, J. D. (2026). <em>Gemelo digital Cali</em>. Código y artefactos experimentales del proyecto. <a href="https://github.com/josearpa123/Gemelo_digital_cali">https://github.com/josearpa123/Gemelo_digital_cali</a>. Los resultados numéricos de este informe corresponden al experimento de cooperación documentado en el anexo.</p>
+</section>
+
+<section class="start-page chapter-break appendix">
+<h1>Anexo. Evidencia y reproducibilidad</h1>
+<p>La fuente numérica primaria es el experimento completado bajo <code>outputs/evaluations/cooperation_20261119/</code>. La tabla siguiente permite rastrear los resultados sin confundir validación con prueba final.</p>
+{{evidence_table}}
+<p>El modelo seleccionado es <code>{{selected_model}}</code>. Su SHA-256 es:</p>
+<p><code>{{model_sha256}}</code></p>
+<p>La instantánea experimental identifica la revisión <code>{{source_revision}}</code>. La validación precede al test y la decisión de selección se conserva en <code>selection.json</code>. Los seis modelos completaron {{steps_per_run}} transiciones cada uno.</p>
+<p class="caption"><strong>Tabla A1.</strong> Dependencias principales registradas en el experimento.</p>
+{{versions_table}}
+<p>El informe se acompaña de un paquete de evidencia con los CSV, los reportes JSON de validación y test, la selección y las figuras. El paquete no contiene credenciales, trazas privadas ni pesos de modelos. Las versiones PDF y Word presentan los mismos resultados; Word permite adaptar la portada a los requisitos de la institución.</p>
+</section>
+</body>
+</html>

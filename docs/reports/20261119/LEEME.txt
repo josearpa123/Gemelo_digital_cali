@@ -1,0 +1,39 @@
+INFORME ACADÉMICO — GEMELO DIGITAL CALI
+Autores: Milton Alberto Quintero Estrada y Jose David Arias Pantoja.
+
+Archivos de entrega
+- Informe_Gemelo_Digital_Cali_APA.pdf: informe final de 20 páginas.
+- Informe_Gemelo_Digital_Cali_APA.docx: versión editable del mismo informe.
+- Anexos_Informe_Gemelo_Digital_Cali.zip: resultados, tablas, figuras y fuentes
+  de la primera versión del informe. La versión definitiva con formato APA
+  es el PDF/Word de esta carpeta; el HTML del ZIP conserva el formato anterior.
+- apa-quality.json: comprobación de autores, tamaño carta, márgenes y paginación.
+
+Portada institucional adaptada de la plantilla proporcionada por Milton:
+Universidad Cooperativa de Colombia, Ingeniería de Sistemas, Cali, 2026.
+El documento de grado original utilizado como plantilla no está incluido.
+
+Resultados y límites
+Experimento: outputs/evaluations/cooperation_20261119/.
+Seis entrenamientos; 120 simulaciones de validación y 45 de prueba final.
+PPO: reducción pareada de espera en pico de 66,5 % frente a tiempo fijo y
+19,2 % frente a max-pressure. En valle no se demuestra ventaja sobre
+max-pressure. Demanda sintética, cuatro semáforos y calibración real pendiente.
+Este informe no cambia el modelo activo del panel.
+
+Regeneración (desde la raíz del repositorio)
+1. Dentro del contenedor trainer, ejecutar:
+   python scripts/build_academic_report.py
+   python scripts/prepare_apa_report.py
+   Requiere los resultados locales del experimento, que no se versionan
+   completos en outputs/. El ZIP conserva la evidencia numérica del informe.
+2. Convertir el HTML de outputs/report_apa_20261119/ a DOCX con Pandoc,
+   usando esa carpeta como --resource-path y metadatos title/author vacíos.
+3. En Windows, con Word y PowerShell 7, ejecutar format_apa_word.ps1 con
+   -Path (DOCX generado), -CoverTemplate (plantilla institucional original)
+   y -PdfPath (PDF de salida). Trabajar sobre una copia del DOCX generado.
+4. Con PyMuPDF en un contenedor, ejecutar scripts/check_apa_delivery.py.
+   Comprueba los archivos en outputs/report_apa_20261119/.
+
+Las herramientas de renderizado y revisión usan dependencias auxiliares
+(PyMuPDF; Playwright para la versión HTML). No modifican el entorno de RL.

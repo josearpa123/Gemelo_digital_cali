@@ -1,0 +1,30 @@
+{
+  "status": "passed",
+  "pages": 20,
+  "text_lengths": [
+    482,
+    1296,
+    1681,
+    902,
+    664,
+    1256,
+    1389,
+    1698,
+    1612,
+    1513,
+    1423,
+    1031,
+    952,
+    1956,
+    1486,
+    1686,
+    495,
+    1454,
+    1494,
+    407
+  ],
+  "authors_verified": true,
+  "letter_size": true,
+  "margins_inches": 1,
+  "clipped_blocks": []
+}
